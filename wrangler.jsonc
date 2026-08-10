@@ -1,0 +1,16 @@
+{
+  // Sirona — training log (Will It Build 002)
+  // Deploy:  npx wrangler deploy
+  // Secret:  npx wrangler secret put SIRONA_KEY   (pick a passphrase; the app asks for it once)
+  "name": "sirona",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-01",
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "sirona-db",
+      "database_id": "235d3980-6a6d-434a-ac60-3b73e6d088ff"
+    }
+  ]
+}
