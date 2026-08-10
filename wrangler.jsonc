@@ -2,10 +2,15 @@
   // Sirona — training log (Will It Build 002)
   // Deploy:  npx wrangler deploy
   // Secret:  npx wrangler secret put SIRONA_KEY   (pick a passphrase; the app asks for it once)
+  // The custom domain below is created automatically on deploy (DNS + cert),
+  // since will-it-build.com is on the same Cloudflare account.
   "name": "sirona",
   "main": "worker.js",
   "compatibility_date": "2026-08-01",
   "assets": { "directory": "./public", "binding": "ASSETS" },
+  "routes": [
+    { "pattern": "sirona.will-it-build.com", "custom_domain": true }
+  ],
   "d1_databases": [
     {
       "binding": "DB",
