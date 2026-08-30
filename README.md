@@ -20,10 +20,11 @@ every change. Header dot: green = synced, grey = local-only, red = error.
 ## Week planning
 Week tab: coming seven days. Plan a session (Push/Pull/Legs, ordered
 exercises from the menus, optional notes). Sets stay empty until you
-train. On the day, Today shows a banner — Start loads the list into the
-logger. Finish marks that session `done`; it then behaves like any other
-log (ledger, last-session markers, PRs). Progress / 1RM / trends ignore
-`status: "planned"` so empty plans never pollute numbers.
+train. On the day, Today loads that list into the logger automatically —
+names only, expand an exercise to log sets. Session info stays collapsed
+until you open it. Finish marks that session `done`; it then behaves like
+any other log (ledger, last-session markers, PRs). Progress / 1RM /
+trends ignore `status: "planned"` so empty plans never pollute numbers.
 
 Sessions are one object either way:
 
