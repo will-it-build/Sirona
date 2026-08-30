@@ -188,6 +188,52 @@ details.meta[open] summary::after{content:'–'}
 .set-beat{color:var(--knurl);font-size:12px}
 
 footer{text-align:center;color:var(--chalk-dim);font-family:'IBM Plex Mono';font-size:11px;padding:10px 0 26px;letter-spacing:.06em}
+
+.banner{
+  background:var(--plate);border:1px solid var(--knurl);border-radius:var(--radius);
+  padding:12px 14px;margin-bottom:12px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.banner .copy{min-width:0}
+.banner .copy b{color:var(--knurl)}
+.banner .ex-line{font-family:'IBM Plex Mono';font-size:12px;color:var(--chalk-dim);margin-top:4px}
+.banner .go-btn{
+  background:var(--knurl);color:var(--iron);border-radius:8px;padding:10px 16px;
+  font-weight:600;flex-shrink:0;
+}
+
+.week-day{background:var(--plate);border:1px solid var(--steel);border-radius:var(--radius);margin-bottom:10px;padding:12px 14px}
+.week-day.is-today{border-color:var(--knurl)}
+.week-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+.week-label{font-family:'Barlow Condensed';font-weight:600;font-size:17px;letter-spacing:.08em;text-transform:uppercase}
+.week-date{font-family:'IBM Plex Mono';font-size:12px;color:var(--chalk-dim)}
+.week-day-type{font-family:'Barlow Condensed';font-weight:600;font-size:15px;letter-spacing:.1em;text-transform:uppercase;color:var(--knurl);margin:2px 0 4px}
+.week-notes{font-size:13px;color:var(--chalk-dim);font-style:italic;margin-bottom:6px}
+.week-ex{font-size:14px;padding:4px 0;border-top:1px dashed var(--steel)}
+.week-ex .n{color:var(--chalk)}
+.week-ex .note{font-size:12px;color:var(--chalk-dim);font-style:italic}
+.week-logged{font-family:'IBM Plex Mono';font-size:11.5px;color:var(--chalk-dim);margin-top:6px}
+.week-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.week-actions button{
+  flex:1;padding:10px 0;border:1px solid var(--steel);border-radius:8px;
+  color:var(--chalk-dim);font-size:13px;
+}
+.week-actions button.primary{background:var(--knurl);color:var(--iron);border-color:var(--knurl);font-weight:600}
+.week-section{font-family:'Barlow Condensed';font-weight:600;font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--chalk-dim);margin:16px 0 8px}
+
+.plan-editor{background:var(--plate);border:1px solid var(--knurl);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px}
+.plan-editor h2{font-family:'Barlow Condensed';font-weight:800;font-size:18px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+.plan-notes{width:100%;background:var(--iron);border:1px solid var(--steel);border-radius:8px;padding:10px;margin:8px 0 12px;font-size:14px}
+.plan-ex{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-top:1px dashed var(--steel)}
+.plan-ex .info{flex:1;min-width:0}
+.plan-ex .n{font-weight:600;font-size:15px}
+.plan-ex .g{font-size:11px;color:var(--chalk-dim);letter-spacing:.04em;text-transform:uppercase}
+.plan-ex input{width:100%;background:var(--iron);border:1px solid var(--steel);border-radius:8px;padding:8px;margin-top:6px;font-size:13px}
+.plan-move{display:flex;flex-direction:column;gap:2px}
+.plan-move button{color:var(--knurl);padding:2px 6px;font-size:14px;line-height:1}
+.plan-save{width:100%;margin-top:12px;padding:13px 0;border-radius:var(--radius);background:var(--knurl);color:var(--iron);font-family:'Barlow Condensed';font-weight:800;font-size:18px;letter-spacing:.1em;text-transform:uppercase}
+.plan-cancel{width:100%;margin-top:8px;padding:10px 0;color:var(--chalk-dim);font-size:13px}
+
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -199,13 +245,15 @@ footer{text-align:center;color:var(--chalk-dim);font-family:'IBM Plex Mono';font
 </header>
 
 <nav role="tablist">
-  <button role="tab" aria-selected="true"  id="tab-today"   onclick="showView('today')">Today</button>
-  <button role="tab" aria-selected="false" id="tab-history" onclick="showView('history')">Ledger</button>
+  <button role="tab" aria-selected="true"  id="tab-today"    onclick="showView('today')">Today</button>
+  <button role="tab" aria-selected="false" id="tab-week"     onclick="showView('week')">Week</button>
+  <button role="tab" aria-selected="false" id="tab-history"  onclick="showView('history')">Ledger</button>
   <button role="tab" aria-selected="false" id="tab-progress" onclick="showView('progress')">Progress</button>
 </nav>
 
 <main>
   <section id="view-today">
+    <div id="todayBanner" hidden></div>
     <div class="day-row" id="dayRow"></div>
 
     <details class="meta">
@@ -239,6 +287,11 @@ footer{text-align:center;color:var(--chalk-dim);font-family:'IBM Plex Mono';font
     </div>
 
     <button class="finish" id="finishBtn" onclick="finishSession()" disabled>Log session</button>
+  </section>
+
+  <section id="view-week" hidden>
+    <div id="planEditor" hidden></div>
+    <div id="weekList"></div>
   </section>
 
   <section id="view-progress" hidden>
@@ -307,7 +360,7 @@ const sync = {
       const remote = await this.api('GET');
       state.sessions = this.merge(state.sessions, remote.sessions || []);
       store.save(state);
-      renderExercises(); renderHistory();
+      renderExercises(); renderHistory(); renderWeek(); renderTodayBanner();
       await this.push();                          // push merged truth back
       this.dot('ok');
     }catch(e){ this.dot('err'); }
@@ -352,10 +405,34 @@ const CUSTOM = 'Custom…';
 /* ---------- state ---------- */
 const DAYS = ['Push','Pull','Legs'];
 let state = store.load();
+if(state.sessions) state.sessions.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
 let draft = { day: guessDay(), entries: [] };
+let planEdit = null; // { dateKey, id?, day, entries, notes }
+
+function isPlanned(s){ return s.status === 'planned'; }
+function isDone(s){ return !isPlanned(s); } // missing status = done (pre-planner logs)
+function dateKey(isoOrDate){
+  const d = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return y + '-' + m + '-' + day;
+}
+function parseKey(key){
+  const [y,m,d] = key.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function atNoon(key){
+  const d = parseKey(key);
+  d.setHours(12,0,0,0);
+  return d.toISOString();
+}
+function todayKey(){ return dateKey(new Date()); }
+function planFor(key){ return state.sessions.find(s => isPlanned(s) && dateKey(s.date) === key); }
+function doneOn(key){ return state.sessions.filter(s => isDone(s) && dateKey(s.date) === key); }
 
 function guessDay(){
-  const last = state.sessions[0];
+  const last = state.sessions.find(isDone);
   if(!last) return 'Push';
   const i = DAYS.indexOf(last.day);
   return DAYS[(i+1) % DAYS.length] || 'Push';
@@ -364,6 +441,7 @@ function guessDay(){
 /* ---------- helpers ---------- */
 function lastPerformance(name){
   for(const s of state.sessions){
+    if(!isDone(s) || !s.entries) continue;
     const e = s.entries.find(e => e.exercise.toLowerCase() === name.toLowerCase());
     if(e && e.sets.length){
       const best = e.sets.reduce((a,b)=> (b.w > a.w ? b : a));
@@ -410,12 +488,12 @@ function renderDayRow(){
 }
 function setDay(d){ draft.day = d; renderDayRow(); renderPicker(); }
 
-function groupsForDay(){
-  return Object.keys(MENU[draft.day]).concat(['Core (optional)']);
+function groupsForDay(day){
+  return Object.keys(MENU[day || draft.day]).concat(['Core (optional)']);
 }
-function exercisesForGroup(g){
+function exercisesForGroup(g, day){
   if(g === 'Core (optional)') return CORE.slice();
-  return (MENU[draft.day][g] || []).slice();
+  return (MENU[day || draft.day][g] || []).slice();
 }
 function renderPicker(){
   const gSel = document.getElementById('pGroup');
@@ -531,18 +609,30 @@ function clearMeta(){
 function finishSession(){
   const entries = draft.entries.filter(e => e.sets.length);
   if(!entries.length) return;
-  state.sessions.unshift({
-    id: Date.now().toString(36),
-    date: new Date().toISOString(),
-    day: draft.day,
-    meta: readMeta(),
-    entries
-  });
+  const meta = readMeta();
+  const planned = draft.planId && state.sessions.find(s => s.id === draft.planId && isPlanned(s));
+  if(planned){
+    planned.status = 'done';
+    planned.date = new Date().toISOString();
+    planned.day = draft.day;
+    planned.meta = meta;
+    planned.entries = entries;
+  } else {
+    state.sessions.unshift({
+      id: Date.now().toString(36),
+      date: new Date().toISOString(),
+      day: draft.day,
+      status: 'done',
+      meta,
+      entries
+    });
+  }
+  state.sessions.sort((a,b)=> b.date.localeCompare(a.date));
   store.save(state);
   sync.push();
   draft = { day: guessDay(), entries: [] };
   clearMeta();
-  renderDayRow(); renderExercises(); renderPicker(); renderHistory();
+  renderDayRow(); renderExercises(); renderPicker(); renderHistory(); renderWeek(); renderTodayBanner();
   showView('history');
 }
 
@@ -558,13 +648,15 @@ function metaLine(m){
 }
 function renderHistory(){
   const wrap = document.getElementById('historyList');
-  if(!state.sessions.length){
+  const done = state.sessions.filter(isDone);
+  if(!done.length){
     wrap.innerHTML = '<div class="empty"><b>Empty ledger</b>Log your first session and it lands here.</div>';
     return;
   }
-  wrap.innerHTML = state.sessions.map(s =>
+  wrap.innerHTML = done.map(s =>
     '<div class="h-session">' +
       '<div class="h-top"><span class="h-day">' + s.day + '</span><span class="h-date">' + fmtDate(s.date) + '</span></div>' +
+      (s.notes ? '<div class="h-meta">' + esc(s.notes) + '</div>' : '') +
       metaLine(s.meta) +
       s.entries.map(e =>
         '<div class="h-ex"><div class="n">' + esc(e.exercise) + '</div>' +
@@ -579,7 +671,8 @@ function renderHistory(){
 function deleteSession(id){
   if(!confirm('Delete this session from the ledger?')) return;
   state.sessions = state.sessions.filter(s => s.id !== id);
-  store.save(state); sync.push(); renderHistory(); renderExercises();
+  if(draft.planId === id) draft.planId = undefined;
+  store.save(state); sync.push(); renderHistory(); renderExercises(); renderWeek(); renderTodayBanner();
 }
 
 /* ---------- import / export ---------- */
@@ -599,7 +692,7 @@ function importData(){
         const data = JSON.parse(t);
         if(!Array.isArray(data.sessions)) throw 0;
         state = data; store.save(state); sync.push();
-        renderHistory(); renderExercises();
+        renderHistory(); renderExercises(); renderWeek(); renderTodayBanner();
         alert('Imported ' + state.sessions.length + ' sessions.');
       }catch(e){ alert('That file is not a Sirona export.'); }
     });
@@ -610,10 +703,11 @@ function importData(){
 /* ---------- progress ---------- */
 function e1rm(w, r){ return r >= 1 ? w * (1 + r/30) : w; }   // Epley estimate
 function exerciseHistory(name){
-  // oldest → newest, one point per session where it appears
+  // oldest → newest, one point per completed session where it appears
   const pts = [];
   for(let i = state.sessions.length - 1; i >= 0; i--){
     const s = state.sessions[i];
+    if(!isDone(s) || !s.entries) continue;
     const e = s.entries.find(e => e.exercise.toLowerCase() === name.toLowerCase());
     if(e && e.sets.length){
       const best = e.sets.reduce((a,b)=> (e1rm(b.w,b.r) > e1rm(a.w,a.r) ? b : a));
@@ -624,7 +718,7 @@ function exerciseHistory(name){
   return pts;
 }
 function renderProgressSelect(){
-  const names = [...new Set(state.sessions.flatMap(s => s.entries.map(e => e.exercise)))].sort();
+  const names = [...new Set(state.sessions.filter(isDone).flatMap(s => (s.entries||[]).map(e => e.exercise)))].sort();
   const sel = document.getElementById('progEx');
   const keep = sel.value;
   sel.innerHTML = names.length
@@ -683,21 +777,322 @@ function renderProgress(){
     '<div class="prog-card"><div class="prog-title">Session by session — beat these numbers</div>' + rows + '</div>';
 }
 
+/* ---------- week + plans ---------- */
+function weekKeys(){
+  const keys = [];
+  const now = new Date();
+  for(let i=0;i<7;i++){
+    keys.push(dateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate()+i)));
+  }
+  return keys;
+}
+function weekHeading(key, i){
+  if(i===0) return 'Today';
+  if(i===1) return 'Tomorrow';
+  return parseKey(key).toLocaleDateString('en-GB',{weekday:'long'});
+}
+function weekDateLabel(key){
+  return parseKey(key).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+}
+function startable(key){ return key <= todayKey(); }
+
+function renderTodayBanner(){
+  const el = document.getElementById('todayBanner');
+  const plan = planFor(todayKey());
+  if(!plan){ el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  const names = (plan.entries||[]).map(e => e.exercise).join(' · ');
+  if(draft.planId === plan.id){
+    el.innerHTML = '<div class="copy">Logging today’s <b>' + esc(plan.day) + '</b> plan.' +
+      (plan.notes ? '<div class="ex-line">' + esc(plan.notes) + '</div>' : '') + '</div>';
+    return;
+  }
+  el.innerHTML =
+    '<div class="copy"><b>' + esc(plan.day) + '</b> planned' +
+      (plan.notes ? ' — ' + esc(plan.notes) : '') +
+      (names ? '<div class="ex-line">' + esc(names) + '</div>' : '') +
+    '</div>' +
+    '<button class="go-btn" onclick="startPlan(\'' + plan.id + '\')">Start</button>';
+}
+
+function startPlan(id){
+  const s = state.sessions.find(x => x.id === id);
+  if(!s || !isPlanned(s)) return;
+  if(draft.planId === id && draft.entries.length){ showView('today'); return; }
+  if(draft.entries.some(e => e.sets.length) && !confirm('Replace the session you’re logging?')) return;
+  draft = {
+    day: s.day,
+    planId: s.id,
+    entries: (s.entries||[]).map(e => ({
+      exercise: e.exercise,
+      group: e.group,
+      sets: [],
+      note: e.note || ''
+    }))
+  };
+  renderDayRow(); renderExercises(); renderPicker(); renderTodayBanner();
+  showView('today');
+}
+
+function openPlanEditor(key, id){
+  const existing = id
+    ? state.sessions.find(s => s.id === id)
+    : planFor(key);
+  planEdit = existing && isPlanned(existing)
+    ? {
+        dateKey: dateKey(existing.date),
+        id: existing.id,
+        day: existing.day,
+        notes: existing.notes || '',
+        entries: (existing.entries||[]).map(e => ({
+          exercise: e.exercise, group: e.group, sets: [], note: e.note || ''
+        }))
+      }
+    : { dateKey: key, day: guessDay(), notes: '', entries: [] };
+  renderPlanEditor();
+  showView('week');
+}
+
+function closePlanEditor(){
+  planEdit = null;
+  const ed = document.getElementById('planEditor');
+  ed.hidden = true;
+  ed.innerHTML = '';
+}
+
+function setPlanDay(d){
+  if(!planEdit) return;
+  planEdit.day = d;
+  renderPlanEditor();
+}
+function movePlanEx(i, dir){
+  if(!planEdit) return;
+  const j = i + dir;
+  if(j < 0 || j >= planEdit.entries.length) return;
+  const t = planEdit.entries[i];
+  planEdit.entries[i] = planEdit.entries[j];
+  planEdit.entries[j] = t;
+  renderPlanEditor();
+}
+function removePlanEx(i){
+  if(!planEdit) return;
+  planEdit.entries.splice(i,1);
+  renderPlanEditor();
+}
+function updatePlanNote(i, val){
+  if(planEdit) planEdit.entries[i].note = val;
+}
+function updatePlanSessionNote(val){
+  if(planEdit) planEdit.notes = val;
+}
+
+function renderPlanPicker(){
+  if(!planEdit) return;
+  const gSel = document.getElementById('wGroup');
+  const eSel = document.getElementById('wEx');
+  if(!gSel) return;
+  const keepG = gSel.value;
+  gSel.innerHTML = '<option value="" disabled>Muscle group…</option>' +
+    groupsForDay(planEdit.day).map(g => '<option' + (g===keepG?' selected':'') + '>' + esc(g) + '</option>').join('');
+  if(!keepG) gSel.selectedIndex = 0;
+  const g = gSel.value;
+  const keepX = eSel.value;
+  eSel.innerHTML = '<option value="" disabled>Exercise…</option>' +
+    (g ? exercisesForGroup(g, planEdit.day).map(x => '<option' + (x===keepX?' selected':'') + '>' + esc(x) + '</option>').join('') +
+      '<option' + (keepX===CUSTOM?' selected':'') + '>' + CUSTOM + '</option>' : '');
+  if(!g || !keepX) eSel.selectedIndex = 0;
+  const isCustom = eSel.value === CUSTOM;
+  const c = document.getElementById('wCustom');
+  c.hidden = !isCustom;
+  updatePlanAddBtn();
+}
+function onPlanGroupChange(){
+  const eSel = document.getElementById('wEx');
+  const g = document.getElementById('wGroup').value;
+  eSel.innerHTML = '<option value="" disabled selected>Exercise…</option>' +
+    exercisesForGroup(g, planEdit.day).map(x => '<option>' + esc(x) + '</option>').join('') +
+    '<option>' + CUSTOM + '</option>';
+  document.getElementById('wCustom').hidden = true;
+  updatePlanAddBtn();
+}
+function onPlanExChange(){
+  const isCustom = document.getElementById('wEx').value === CUSTOM;
+  const c = document.getElementById('wCustom');
+  c.hidden = !isCustom;
+  if(isCustom) c.focus();
+  updatePlanAddBtn();
+}
+function updatePlanAddBtn(){
+  const g = document.getElementById('wGroup');
+  const x = document.getElementById('wEx');
+  const c = document.getElementById('wCustom');
+  if(!g) return;
+  document.getElementById('wAdd').disabled = !g.value || !x.value || (x.value === CUSTOM && !c.value.trim());
+}
+function addPlanExercise(){
+  if(!planEdit) return;
+  const g = document.getElementById('wGroup').value;
+  let x = document.getElementById('wEx').value;
+  if(x === CUSTOM) x = document.getElementById('wCustom').value.trim();
+  if(!g || !x) return;
+  planEdit.entries.push({exercise:x, group:g, sets:[], note:''});
+  renderPlanEditor();
+}
+
+function renderPlanEditor(){
+  const ed = document.getElementById('planEditor');
+  if(!planEdit){ ed.hidden = true; ed.innerHTML = ''; return; }
+  ed.hidden = false;
+  const idx = weekKeys().indexOf(planEdit.dateKey);
+  const label = idx >= 0 ? weekHeading(planEdit.dateKey, idx)
+    : parseKey(planEdit.dateKey).toLocaleDateString('en-GB',{weekday:'short'});
+  const dateL = weekDateLabel(planEdit.dateKey);
+  ed.innerHTML =
+    '<h2>Plan ' + esc(label === 'Today' || label === 'Tomorrow' ? label : label.slice(0,3)) + ' ' + esc(dateL) + '</h2>' +
+    '<div class="day-row">' + DAYS.map(d =>
+      '<button class="' + (planEdit.day===d?'on':'') + '" onclick="setPlanDay(\'' + d + '\')">' + d + '</button>'
+    ).join('') + '</div>' +
+    '<label for="wNotes" class="picker-title">Notes</label>' +
+    '<input class="plan-notes" id="wNotes" type="text" placeholder="optional — e.g. heavy bench" value="' + esc(planEdit.notes) + '" oninput="updatePlanSessionNote(this.value)">' +
+    planEdit.entries.map((e,i) =>
+      '<div class="plan-ex">' +
+        '<div class="plan-move">' +
+          '<button type="button" onclick="movePlanEx(' + i + ',-1)" aria-label="Move up">▲</button>' +
+          '<button type="button" onclick="movePlanEx(' + i + ',1)" aria-label="Move down">▼</button>' +
+        '</div>' +
+        '<div class="info"><div class="n">' + esc(e.exercise) + '</div><div class="g">' + esc(e.group) + '</div>' +
+          '<input type="text" placeholder="Notes (optional)" value="' + esc(e.note) + '" oninput="updatePlanNote(' + i + ', this.value)">' +
+        '</div>' +
+        '<button class="set-del" onclick="removePlanEx(' + i + ')" aria-label="Remove exercise">×</button>' +
+      '</div>'
+    ).join('') +
+    '<div class="picker" style="margin-top:10px">' +
+      '<div class="picker-title">Add exercise</div>' +
+      '<div class="row">' +
+        '<select id="wGroup" onchange="onPlanGroupChange()"></select>' +
+        '<select id="wEx" onchange="onPlanExChange()"></select>' +
+        '<input type="text" id="wCustom" placeholder="Custom exercise name…" hidden oninput="updatePlanAddBtn()">' +
+        '<button class="add-btn" id="wAdd" onclick="addPlanExercise()" disabled>Add to plan</button>' +
+      '</div>' +
+    '</div>' +
+    '<button class="plan-save" onclick="savePlan()">Save plan</button>' +
+    '<button class="plan-cancel" onclick="closePlanEditor()">Cancel</button>';
+  renderPlanPicker();
+}
+
+function savePlan(){
+  if(!planEdit) return;
+  if(!planEdit.entries.length){ alert('Add at least one exercise.'); return; }
+  const payload = {
+    day: planEdit.day,
+    status: 'planned',
+    notes: (planEdit.notes || '').trim(),
+    entries: planEdit.entries.map(e => ({
+      exercise: e.exercise, group: e.group, sets: [], note: e.note || ''
+    }))
+  };
+  const existing = planEdit.id
+    ? state.sessions.find(s => s.id === planEdit.id && isPlanned(s))
+    : planFor(planEdit.dateKey);
+  if(existing){
+    existing.day = payload.day;
+    existing.status = 'planned';
+    existing.notes = payload.notes;
+    existing.entries = payload.entries;
+    existing.date = existing.date || atNoon(planEdit.dateKey);
+  } else {
+    state.sessions.push({
+      id: Date.now().toString(36) + '-p',
+      date: atNoon(planEdit.dateKey),
+      ...payload
+    });
+  }
+  state.sessions.sort((a,b)=> b.date.localeCompare(a.date));
+  store.save(state);
+  sync.push();
+  if(draft.planId && existing && draft.planId === existing.id){
+    draft.day = existing.day;
+    draft.entries = existing.entries.map(e => {
+      const live = draft.entries.find(d => d.exercise === e.exercise);
+      return { exercise: e.exercise, group: e.group, sets: live ? live.sets : [], note: e.note || '' };
+    });
+    renderDayRow(); renderExercises(); renderPicker();
+  }
+  closePlanEditor();
+  renderWeek(); renderTodayBanner();
+}
+
+function deletePlan(id){
+  if(!confirm('Delete this planned session?')) return;
+  state.sessions = state.sessions.filter(s => s.id !== id);
+  if(draft.planId === id) draft.planId = undefined;
+  store.save(state); sync.push();
+  if(planEdit && planEdit.id === id) closePlanEditor();
+  renderWeek(); renderTodayBanner();
+}
+
+function weekCard(key, i, plan, overdue){
+  const logged = doneOn(key);
+  const names = plan ? (plan.entries||[]) : [];
+  const actions = [];
+  if(plan){
+    if(startable(key)) actions.push('<button class="primary" onclick="startPlan(\'' + plan.id + '\')">Start</button>');
+    actions.push('<button onclick="openPlanEditor(\'' + key + '\',\'' + plan.id + '\')">Edit</button>');
+    actions.push('<button onclick="deletePlan(\'' + plan.id + '\')">Delete</button>');
+  } else {
+    actions.push('<button class="primary" onclick="openPlanEditor(\'' + key + '\')">Plan session</button>');
+  }
+  return '<div class="week-day' + (key===todayKey()?' is-today':'') + '">' +
+    '<div class="week-top"><span class="week-label">' + esc(overdue ? 'Missed' : weekHeading(key, i)) + '</span>' +
+      '<span class="week-date">' + esc(weekDateLabel(key)) + '</span></div>' +
+    (plan
+      ? '<div class="week-day-type">' + esc(plan.day) + '</div>' +
+        (plan.notes ? '<div class="week-notes">' + esc(plan.notes) + '</div>' : '') +
+        names.map(e =>
+          '<div class="week-ex"><div class="n">' + esc(e.exercise) + '</div>' +
+          (e.note ? '<div class="note">' + esc(e.note) + '</div>' : '') + '</div>'
+        ).join('')
+      : '<div class="week-logged">No session planned</div>') +
+    (logged.length ? '<div class="week-logged">Logged ' + logged.map(s => s.day).join(', ') + '</div>' : '') +
+    '<div class="week-actions">' + actions.join('') + '</div>' +
+  '</div>';
+}
+
+function renderWeek(){
+  const wrap = document.getElementById('weekList');
+  const today = todayKey();
+  const overdue = state.sessions
+    .filter(s => isPlanned(s) && dateKey(s.date) < today)
+    .sort((a,b)=> a.date.localeCompare(b.date));
+  let html = '';
+  if(overdue.length){
+    html += '<div class="week-section">Overdue</div>';
+    overdue.forEach(s => { html += weekCard(dateKey(s.date), -1, s, true); });
+    html += '<div class="week-section">Coming days</div>';
+  }
+  weekKeys().forEach((key, i) => { html += weekCard(key, i, planFor(key), false); });
+  wrap.innerHTML = html;
+}
+
 /* ---------- views ---------- */
 function showView(v){
   document.getElementById('view-today').hidden    = v !== 'today';
+  document.getElementById('view-week').hidden     = v !== 'week';
   document.getElementById('view-history').hidden  = v !== 'history';
   document.getElementById('view-progress').hidden = v !== 'progress';
   document.getElementById('tab-today').setAttribute('aria-selected', v==='today');
+  document.getElementById('tab-week').setAttribute('aria-selected', v==='week');
   document.getElementById('tab-history').setAttribute('aria-selected', v==='history');
   document.getElementById('tab-progress').setAttribute('aria-selected', v==='progress');
   if(v === 'progress') renderProgress();
+  if(v === 'week') renderWeek();
+  if(v === 'today') renderTodayBanner();
 }
 
 /* ---------- boot ---------- */
 document.getElementById('todayDate').textContent =
   new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
-renderDayRow(); renderExercises(); renderPicker(); renderHistory();
+renderDayRow(); renderExercises(); renderPicker(); renderHistory(); renderWeek(); renderTodayBanner();
 sync.pull();
 </script>
 </body>

@@ -17,6 +17,26 @@ deltas), plate calculator, ledger, JSON export/import.
 Offline-first: no signal in the gym is fine. Syncs on load and after
 every change. Header dot: green = synced, grey = local-only, red = error.
 
+## Week planning
+Week tab: coming seven days. Plan a session (Push/Pull/Legs, ordered
+exercises from the menus, optional notes). Sets stay empty until you
+train. On the day, Today shows a banner — Start loads the list into the
+logger. Finish marks that session `done`; it then behaves like any other
+log (ledger, last-session markers, PRs). Progress / 1RM / trends ignore
+`status: "planned"` so empty plans never pollute numbers.
+
+Sessions are one object either way:
+
+    { id, date, day, status: "planned"|"done", notes?, meta?, entries }
+
+Missing `status` is treated as done (older logs). `date` is ISO; plans
+use local noon on that calendar day.
+
+GET `/api/sessions` returns planned and done. PUT upserts by `id`. Do
+**not** send `full: true` from an external client unless the payload is
+the complete history — that flag deletes anything missing from the list.
+The in-app sync still uses `full: true` because it has the merged set.
+
 ## Deploy
     npx wrangler secret put SIRONA_KEY     # pick a passphrase
     npx wrangler deploy
