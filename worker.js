@@ -51,7 +51,10 @@ async function handleApi(request, env, url) {
       .map(s => stmt.bind(s.id, s.date, s.day, JSON.stringify(s), now));
     if (batch.length) await env.DB.batch(batch);
 
-    // Deletions: anything in D1 but absent from the client's full list
+    // Deletions: anything in D1 but absent from the client's full list.
+    // Planned sessions (status:"planned") are ordinary rows — GET returns them,
+    // PUT upserts them. External clients should GET, merge, PUT *without*
+    // full:true so a week write cannot wipe completed history.
     if (body.full === true) {
       const ids = body.sessions.map(s => s.id);
       const { results } = await env.DB.prepare('SELECT id FROM sessions').all();
