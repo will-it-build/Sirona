@@ -31,6 +31,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;-we
 input,select,textarea{font:inherit;color:var(--chalk)}
 select{appearance:none;-webkit-appearance:none}
 :focus-visible{outline:2px solid var(--knurl);outline-offset:2px}
+[hidden]{display:none !important}
 
 header{
   padding:calc(14px + env(safe-area-inset-top)) 16px 10px;
@@ -565,11 +566,11 @@ const sync = {
 let authMode = 'login';
 let resetToken = '';
 
-function setShell(on){
+function setShell(on, hasSession){
   document.getElementById('view-auth').hidden = on;
   document.getElementById('appNav').hidden = !on;
   document.getElementById('appMain').hidden = !on;
-  document.getElementById('logoutBtn').hidden = !on;
+  document.getElementById('logoutBtn').hidden = !on || !hasSession;
   if(!on){
     const bar = document.getElementById('restBar');
     if(bar) bar.hidden = true;
@@ -586,7 +587,7 @@ function authErr(msg){
 function showAuth(mode){
   authMode = mode;
   sync.loggedIn = false;
-  setShell(false);
+  setShell(false, false);
   const title = document.getElementById('authTitle');
   const lead = document.getElementById('authLead');
   const emailWrap = document.getElementById('authEmailWrap');
@@ -630,9 +631,9 @@ function showAuth(mode){
   }
 }
 
-function showApp(){
-  sync.loggedIn = true;
-  setShell(true);
+function showApp(hasSession){
+  sync.loggedIn = !!hasSession;
+  setShell(true, !!hasSession);
   document.getElementById('view-auth').hidden = true;
   updateRestBar();
 }
@@ -649,14 +650,14 @@ async function submitAuth(ev){
     if(authMode === 'login'){
       if(!username || !password){ authErr('Username and password required.'); return; }
       await sync.api('/api/login', 'POST', { username, password });
-      showApp();
+      showApp(true);
       await sync.pull();
       return;
     }
     if(authMode === 'setup'){
       if(password !== password2){ authErr('Passwords do not match.'); return; }
       await sync.api('/api/setup', 'POST', { username, email, password });
-      showApp();
+      showApp(true);
       await sync.pull();
       return;
     }
@@ -677,7 +678,7 @@ async function submitAuth(ev){
       await sync.api('/api/reset-password', 'POST', { token: resetToken, password });
       resetToken = '';
       history.replaceState({}, '', location.pathname);
-      showApp();
+      showApp(true);
       await sync.pull();
     }
   }catch(e){
@@ -705,7 +706,7 @@ async function bootAuth(){
     return;
   }
   if(!sync.canSync()){
-    showApp();
+    showApp(false);
     sync.dot('local');
     return;
   }
@@ -713,7 +714,7 @@ async function bootAuth(){
     const r = await fetch('/api/me', { credentials: 'same-origin' });
     const data = await r.json().catch(() => ({}));
     if(r.ok){
-      showApp();
+      showApp(true);
       await sync.pull();
       return;
     }
@@ -721,10 +722,10 @@ async function bootAuth(){
       showAuth(data.setup ? 'setup' : 'login');
       return;
     }
-    showApp();
+    showApp(false);
     sync.dot('local');
   }catch(e){
-    showApp();
+    showApp(false);
     sync.dot('local');
   }
 }
