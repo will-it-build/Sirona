@@ -1,7 +1,9 @@
 {
   // Sirona — training log (Will It Build 002)
   // Deploy:  npx wrangler deploy
-  // Secret:  npx wrangler secret put SIRONA_KEY   (pick a passphrase; the app asks for it once)
+  // Login is username/password in D1 (session cookie). Optional reset mail:
+  //   npx wrangler secret put RESEND_API_KEY
+  //   npx wrangler secret put MAIL_FROM
   // The custom domain below is created automatically on deploy (DNS + cert),
   // since will-it-build.com is on the same Cloudflare account.
   "name": "sirona",
