@@ -726,10 +726,12 @@ document.addEventListener('visibilitychange', () => { if(rest) updateRestBar(); 
 
 /* ---------- exercises ---------- */
 let hydrating = false;
+let hydrateGen = 0;
 function renderExercises(){
   const wrap = document.getElementById('exercises');
   wrap.innerHTML = '';
   hydrating = true;
+  const gen = ++hydrateGen;
   draft.entries.forEach((e, ei) => {
     const last = lastPerformance(e.exercise);
     const card = document.createElement('details');
@@ -766,14 +768,15 @@ function renderExercises(){
     card.addEventListener('toggle', () => {
       if(hydrating) return;
       if(card.open){
+        const wasOpen = openEx.has(ei);
         openEx.add(ei);
-        if(rest && !rest.done && ei > rest.fromEi) promoteRestSwitch();
+        if(!wasOpen && rest && !rest.done && ei > rest.fromEi) promoteRestSwitch();
       } else openEx.delete(ei);
     });
     wrap.appendChild(card);
   });
-  hydrating = false;
   document.getElementById('finishBtn').disabled = !draft.entries.some(e => e.sets.length);
+  setTimeout(() => { if(gen === hydrateGen) hydrating = false; }, 0);
 }
 function removeExercise(i){
   draft.entries.splice(i,1);
