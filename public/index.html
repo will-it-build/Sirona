@@ -651,9 +651,6 @@ function startRest(ei, kind){
   announceRest(kind === 'switch'
     ? 'Rest one minute thirty, next exercise'
     : 'Rest one minute, between sets');
-  if(kind === 'same'){
-    for(const j of openEx){ if(j > ei){ promoteRestSwitch(); break; } }
-  }
 }
 function promoteRestSwitch(){
   if(!rest || rest.done || rest.kind === 'switch') return;
@@ -728,9 +725,11 @@ function updateRestBar(){
 document.addEventListener('visibilitychange', () => { if(rest) updateRestBar(); });
 
 /* ---------- exercises ---------- */
+let hydrating = false;
 function renderExercises(){
   const wrap = document.getElementById('exercises');
   wrap.innerHTML = '';
+  hydrating = true;
   draft.entries.forEach((e, ei) => {
     const last = lastPerformance(e.exercise);
     const card = document.createElement('details');
@@ -765,6 +764,7 @@ function renderExercises(){
       '</div>' +
       '<div class="ex-note"><input type="text" placeholder="Notes (optional)" value="' + esc(e.note) + '" onchange="draft.entries[' + ei + '].note=this.value"></div>';
     card.addEventListener('toggle', () => {
+      if(hydrating) return;
       if(card.open){
         openEx.add(ei);
         if(rest && !rest.done && ei > rest.fromEi) promoteRestSwitch();
@@ -772,6 +772,7 @@ function renderExercises(){
     });
     wrap.appendChild(card);
   });
+  hydrating = false;
   document.getElementById('finishBtn').disabled = !draft.entries.some(e => e.sets.length);
 }
 function removeExercise(i){
