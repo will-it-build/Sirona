@@ -9,7 +9,9 @@
   "name": "sirona",
   "main": "worker.js",
   "compatibility_date": "2026-08-01",
-  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  "vars": { "PUBLIC_SIGNUP": "false", "MAINTENANCE_MODE": "false" },
+  "observability": { "enabled": true },
   "routes": [
     { "pattern": "sirona.will-it-build.com", "custom_domain": true }
   ],
@@ -17,7 +19,8 @@
     {
       "binding": "DB",
       "database_name": "sirona-db",
-      "database_id": "235d3980-6a6d-434a-ac60-3b73e6d088ff"
+      "database_id": "235d3980-6a6d-434a-ac60-3b73e6d088ff",
+      "migrations_dir": "./migrations"
     }
   ]
 }

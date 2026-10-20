@@ -1,85 +1,111 @@
-# Sirona — Training Log (Will It Build 002)
+# Sirona — training log
 
-Named for Sirona, Celtic goddess of healing and renewal.
+A responsive workout logger with private accounts, weekly planning, exercise
+history and progress charts. Sirona remains the working name and current domain.
 
-Digital PPL training log. Auto-dated sessions, day-filtered exercise
-dropdowns (from the paper log's menus + custom), kg × reps × optional RPE,
-per-exercise notes, session info, last-session markers, live "beat" flags,
-Progress tab (best set, estimated 1RM, trend chart, PR flags, per-session
-deltas), plate calculator, ledger, JSON export/import, in-session rest timer.
+This branch prepares the public-account release. Public signup is disabled in
+production configuration until recovery email and the migration are verified.
+See [RELEASE.md](RELEASE.md) before deploying an existing database.
 
-## Architecture
-- public/index.html — the whole app. localStorage = offline cache only.
-- worker.js — serves the app + auth + /api/sessions sync API.
-- Cloudflare D1 (sirona-db) = source of truth. Phone storage can be
-  wiped by Safari; the database can't.
+## Run locally
 
-Offline-first: no signal in the gym is fine. Syncs on load and after
-every change. Header dot: green = synced, grey = local-only, red = error.
+Requires Node.js 22.13 or newer (the backend tests use `node:sqlite`).
 
-## Login
-Username + password, hashed in D1 (PBKDF2-SHA-256). The Worker sets an
-HttpOnly `sirona` session cookie. The app never stores a passphrase or
-`sirona-key` in localStorage.
+```sh
+npm ci
+npm run db:local
+npx wrangler dev --local --var PUBLIC_SIGNUP:true
+```
 
-First visit (no users yet): create-account form (username, email,
-password). One user is enough.
+Local D1 storage is separate from production. Create a test account through the
+signup form. For local recovery-email development, use an ignored `.dev.vars`
+file for `RESEND_API_KEY` and `MAIL_FROM`; do not use real recipient addresses in
+automated tests. Automated email tests mock the provider and send no messages.
 
-Forgot password: request a reset (username or email) → Worker stores a
-one-hour token → `/?reset=<token>` sets a new password. Sending the
-mail needs a provider the Worker does not ship: set Wrangler secrets
-`RESEND_API_KEY` and `MAIL_FROM` (Resend). Until those exist, login
-and persist still work; the reset token is stored and the reset page
-works if you have the link.
+```sh
+npm test
+npm run check
+npm run test:browser
+npm run deploy:check
+```
 
-## Sync
-GET `/api/sessions`, merge with **completed-on-server winning over
-empty or planned local**, PUT **upserts only**. The browser never
-sends `full: true`. The Worker ignores that flag for deletions — a
-stale or empty cache cannot wipe completed history. Deletes go through
-`DELETE /api/sessions/:id`.
+Browser checks use installed Chrome locally, port 8788 and a fresh isolated D1
+store for each run. In CI, install Playwright Chromium with
+`npx playwright install --with-deps chromium`. Deployment checks build the bundle
+without publishing it. Browser artifacts and local databases are gitignored.
 
-## Week planning
-Week tab: coming seven days. Plan a session (Push/Pull/Legs, ordered
-exercises from the menus, optional notes). Sets stay empty until you
-train. On the day, Today loads that list into the logger automatically —
-names only, expand an exercise to log sets. Session info stays collapsed
-until you open it. Finish marks that session `done`; it then behaves like
-any other log (ledger, last-session markers, PRs). Progress / 1RM /
-trends ignore `status: "planned"` so empty plans never pollute numbers.
+## Architecture and accounts
 
-Sessions are one object either way:
+- `public/index.html` and `public/app.js`: existing training UI, authentication,
+  draft autosave and recovery controls.
+- `public/sync.js`: account-scoped offline queue with acknowledged revisions.
+- `public/validation.js`: workout validation shared by browser imports and API.
+- `worker.js` and `auth.js`: same-origin JSON API, password hashing, session cookies,
+  throttling and Resend password-recovery delivery.
+- Cloudflare D1: persistent accounts and private records. Schema changes live in
+  `migrations/`; the Worker does not create tables during requests.
 
-    { id, date, day, status: "planned"|"done", notes?, meta?, entries }
+Signup requires a username, email and password of at least 12 characters. Login
+accepts username or email. Session cookies are HttpOnly, SameSite=Strict and Secure
+on HTTPS. Tokens are stored as hashes; passwords retain the existing PBKDF2 format
+so current accounts can still log in. Public signup is controlled by
+`PUBLIC_SIGNUP`. `MAINTENANCE_MODE` blocks API requests before database access.
 
-Missing `status` is treated as done (older logs). `date` is ISO; plans
-use local noon on that calendar day.
+Password reset links expire after one hour, can be used only once and revoke
+existing sessions. Configure Resend using secrets `RESEND_API_KEY` and `MAIL_FROM`
+and a verified sending domain. Provider failures are logged without recipient,
+password or reset-token data. Successful automated tests do not prove real inbox
+delivery; that is a separate release gate.
 
-## Rest timer
-Visible on Today as soon as the session logger is open — before any set
-is logged. Idle default: 60s between sets. Logging a set starts the
-countdown (60s same exercise, 90s when that exercise’s last-session set
-count is done and another move is next). Tap the kind label to switch
-60/90 presets. Slider sets 30–120 seconds for the current kind. Hidden
-on Week, Ledger, and Progress.
+## Saving and recovery
 
-## Deploy
-    npx wrangler deploy
-D1 database + sessions table must exist (see wrangler.jsonc binding).
-Auth tables are created on first API request (see schema.sql).
+Workouts and the active draft are private to their authenticated owner. The
+browser caches data under that account's ID and sends an account ID guard with
+record requests to prevent an old queue saving under a different login.
 
-Optional (password-reset mail):
+Each save carries the last acknowledged revision and a unique mutation ID. A
+retry after a lost response is idempotent. Competing edits are retained for the
+user to resolve. Deleted sessions leave tombstones so stale devices cannot bring
+them back; explicit restoration creates a new session instead.
 
-    npx wrangler secret put RESEND_API_KEY
-    npx wrangler secret put MAIL_FROM
+The status banner distinguishes pending local edits, saving, errors and conflicts.
+Offline drafts survive reload on a device previously signed in. Reconnecting
+retries the queue. One editing tab is allowed per browser where Web Locks is
+supported. Logging out revokes the server session; it requires a connection.
+Cached records remain on the device for the next login, so use a trusted browser.
 
-`SIRONA_KEY` is no longer used by the app. A Bearer token of that
-secret still works for ops if the secret is set.
+Device storage is not a backup: clearing browser data can lose unsynced changes.
+Use Ledger → Export JSON before clearing storage, changing domains or resolving
+uncertain edits. Imports create new session identities and can duplicate sessions
+if the same file is imported repeatedly. Export includes the draft and pending
+queue for recovery; the ordinary import control imports only sessions.
 
-Custom domain: dashboard → Workers → sirona → Settings → Domains & Routes
-→ Add → sirona.will-it-build.com.
+The previous unscoped `sirona-v1` cache is preserved but never automatically
+assigned to a public account. Export it from the old app before rollout and review
+any unsynced sessions against the migrated ledger before importing missing ones.
 
-## Fork it
-All Will It Build code is open source. To run your own: create a D1
-database, put its id in wrangler.jsonc, deploy, create the first account
-in the app.
+The retired shared `/api/sessions` API rejects requests with an update-required
+response. There is no shared bearer-token backdoor for records.
+
+## Phone use
+
+The web manifest and service worker support home-screen installation. Android
+browsers may offer Install; on iPhone use Safari's Add to Home Screen. The service
+worker caches the app shell, never API responses or password-reset URLs. Offline
+access requires a previous successful sign-in and shell download. This is a web
+app, not an App Store release. Real-device installation remains a manual check.
+
+## Product scope
+
+Workouts, plans, set notes, rest timer, plate calculator, ledger, JSON export and
+exercise progress remain available. Bodyweight can be noted with a workout.
+Independent morning/evening weigh-ins, meals/protein and authorised ChatGPT access
+are later work, not implemented features. ChatGPT access must be scoped and
+revocable; it must not reuse a shared admin secret. Exercise animations are deferred.
+
+## New installations
+
+Create a separate D1 database, update its binding and your route in
+`wrangler.jsonc`, and apply migrations to that database before deploying. Do not
+point a fork or preview at the production Sirona database. Backups and migration
+checks are still required when updating an existing installation.

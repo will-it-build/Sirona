@@ -1,6 +1,6 @@
--- Sirona D1 tables. The Worker also CREATE TABLE IF NOT EXISTS these
--- auth tables on first API request. The sessions table already exists
--- in production; do not drop it.
+-- Historical pre-account-isolation schema, retained for reference only.
+-- New installs and upgrades must use migrations/ through Wrangler.
+-- The Worker no longer creates tables on requests. Do not drop legacy sessions.
 
 -- Workout log (existing). One JSON document per session.
 -- CREATE TABLE sessions (
