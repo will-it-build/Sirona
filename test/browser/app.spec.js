@@ -87,3 +87,56 @@ test('an already completed draft can be cleared without removing the logged work
   await expect(page.locator('.h-session')).toHaveCount(1);
   await expect(page.locator('#saveStatus')).toHaveText('All changes saved');
 });
+
+test('planner separates earlier plans; history searches and filters newest first', async ({page}) => {
+  await page.setViewportSize({width:390,height:844});
+  await signup(page);
+  await page.evaluate(async () => {
+    const user = JSON.parse(localStorage.getItem('sirona-active-user'));
+    const date = offset => { const d = new Date(); d.setDate(d.getDate()+offset); d.setHours(12,0,0,0); return d.toISOString(); };
+    const records = [
+      {id:'old-plan',day:'Push',status:'planned',date:date(-60)},
+      {id:'recent-plan',day:'Pull',status:'planned',date:date(-2)},
+      {id:'today-plan',day:'Legs',status:'planned',date:date(0)},
+      {id:'later-plan',day:'Pull',status:'planned',date:date(20)},
+      {id:'old-workout',day:'Push',status:'done',date:date(-30),exercise:'Bench press'},
+      {id:'recent-workout',day:'Pull',status:'done',date:date(-1),exercise:'Dumbbell row'},
+      {id:'rest-plan',day:'Rest',status:'planned',date:date(-3)},
+    ];
+    for(const record of records){
+      const {exercise,...data} = record;
+      data.entries = record.day === 'Rest' ? [] : [{exercise:exercise||'Example exercise',group:'Chest',sets:record.status==='done'?[{w:40,r:8}]:[],note:''}];
+      const result = await fetch('/api/v2/records/session:'+record.id,{method:'PUT',headers:{'Content-Type':'application/json','X-Sirona-User':user.id},body:JSON.stringify({data,revision:0,mutationId:crypto.randomUUID()})});
+      if(!result.ok) throw new Error('Fixture failed: '+result.status);
+    }
+  });
+  await page.reload(); await expect(page.locator('#appMain')).toBeVisible();
+  await page.locator('#tab-week').click();
+  await expect(page.locator('#weekList .record-row').first()).toHaveAttribute('data-row','today-plan');
+  await expect(page.locator('[data-row="old-plan"]')).toHaveCount(0);
+  await expect(page.locator('[data-row="later-plan"]')).toHaveCount(1);
+  await page.screenshot({path:'test-results/mobile-plan.png',fullPage:true});
+  await page.locator('#planRange').selectOption('earlier');
+  await expect(page.locator('#weekList .record-row').first()).toHaveAttribute('data-row','recent-plan');
+  const recent = page.locator('[data-row="recent-plan"]');
+  await recent.locator('summary').click();
+  await expect(recent.getByRole('button',{name:'Start workout'})).toBeVisible();
+  await page.evaluate(()=>window.renderWeek());
+  await expect(recent).toHaveAttribute('open','');
+  await expect(recent.locator('summary')).toBeFocused();
+  await page.locator('[data-row="rest-plan"] summary').click();
+  await expect(page.locator('[data-row="rest-plan"]').getByRole('button',{name:'Start workout'})).toHaveCount(0);
+  await page.locator('#tab-history').click();
+  await expect(page.locator('.h-session').first()).toHaveAttribute('data-row','recent-workout');
+  await page.locator('#historySearch').fill('bench');
+  await expect(page.locator('.h-session')).toHaveCount(1);
+  await expect(page.locator('.h-session')).toHaveAttribute('data-row','old-workout');
+  await page.locator('#historyType').selectOption('Pull');
+  await expect(page.locator('#historyList')).toContainText('No matching sessions');
+  await page.locator('#historySearch').fill('');
+  await expect(page.locator('.h-session')).toHaveAttribute('data-row','recent-workout');
+  await page.locator('#historyType').selectOption('');
+  await page.locator('.h-session').first().locator('summary').click();
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/mobile-history.png',fullPage:true});
+});

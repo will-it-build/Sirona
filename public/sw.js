@@ -1,4 +1,4 @@
-const CACHE = 'sirona-shell-v2-6';
+const CACHE = 'sirona-shell-v2-8';
 const SHELL = ['/', '/app.js', '/sync.js', '/validation.js', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)));

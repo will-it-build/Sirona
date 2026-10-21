@@ -725,27 +725,47 @@ function metaLine(m){
   if(m.feel) bits.push('“' + esc(m.feel) + '”');
   return bits.length ? '<div class="h-meta">' + bits.join(' · ') + '</div>' : '';
 }
+// Keep expanded rows and keyboard focus intact when background sync refreshes a list.
+function updateRecordList(wrap, html){
+  const expanded = new Set([...wrap.querySelectorAll('details[open]')].map(el => el.dataset.row));
+  const active = document.activeElement;
+  const row = active?.closest('details[data-row]');
+  const focusIndex = row ? [...row.querySelectorAll('summary,button')].indexOf(active) : -1;
+  const focusRow = row?.dataset.row;
+  wrap.innerHTML = html;
+  for(const el of wrap.querySelectorAll('details[data-row]')){
+    el.open = expanded.has(el.dataset.row);
+    if(el.dataset.row === focusRow && focusIndex >= 0) el.querySelectorAll('summary,button')[focusIndex]?.focus({preventScroll:true});
+  }
+}
+function recordDate(date){
+  return new Date(date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+}
 function renderHistory(){
   const wrap = document.getElementById('historyList');
-  const done = state.sessions.filter(isDone);
+  const query = document.getElementById('historySearch').value.trim().toLowerCase();
+  const type = document.getElementById('historyType').value;
+  const all = state.sessions.filter(isDone).sort((a,b) => Date.parse(b.date) - Date.parse(a.date));
+  const done = all.filter(s => (!type || s.day === type) && (!query ||
+    [s.day,s.notes,s.meta?.feel,...s.entries.flatMap(e => [e.exercise,e.note])].filter(Boolean).join(' ').toLowerCase().includes(query)));
+  document.getElementById('historyCount').textContent = done.length + ' of ' + all.length + ' sessions · newest first';
   if(!done.length){
-    wrap.innerHTML = '<div class="empty"><b>Empty ledger</b>Log your first session and it lands here.</div>';
+    wrap.innerHTML = '<div class="empty"><b>' + (all.length ? 'No matching sessions' : 'Your progress starts here') + '</b>' +
+      (all.length ? 'Try another exercise or clear the filters.' : 'Your completed workouts will appear here.') + '</div>';
     return;
   }
-  wrap.innerHTML = done.map(s =>
-    '<div class="h-session">' +
-      '<div class="h-top"><span class="h-day">' + s.day + '</span><span class="h-date">' + fmtDate(s.date) + '</span></div>' +
-      (s.notes ? '<div class="h-meta">' + esc(s.notes) + '</div>' : '') +
-      metaLine(s.meta) +
-      s.entries.map(e =>
-        '<div class="h-ex"><div class="n">' + esc(e.exercise) + '</div>' +
+  updateRecordList(wrap, done.map(s => {
+    const sets = s.entries.reduce((n,e) => n + e.sets.length,0);
+    return '<details class="h-session record-row" data-row="' + s.id + '">' +
+      '<summary><span class="row-copy"><span class="row-title">' + esc(s.day) + '<span class="row-date">' + recordDate(s.date) + '</span></span>' +
+      '<span class="row-caption">' + s.entries.length + (s.entries.length === 1 ? ' exercise · ' : ' exercises · ') + sets + (sets === 1 ? ' set' : ' sets') + '</span></span><span class="row-chevron" aria-hidden="true">⌄</span></summary>' +
+      '<div class="row-detail">' +
+      (s.notes ? '<div class="h-meta">' + esc(s.notes) + '</div>' : '') + metaLine(s.meta) +
+      s.entries.map(e => '<div class="h-ex"><div class="n">' + esc(e.exercise) + '</div>' +
         '<div class="s">' + e.sets.map(x => x.w + '×' + x.r + (x.rpe ? '@' + x.rpe : '')).join('  ') + '</div>' +
-        (e.note ? '<div class="note">' + esc(e.note) + '</div>' : '') +
-        '</div>'
-      ).join('') +
-      '<button class="h-del" onclick="deleteSession(\'' + s.id + '\')">delete entry</button>' +
-    '</div>'
-  ).join('');
+        (e.note ? '<div class="note">' + esc(e.note) + '</div>' : '') + '</div>').join('') +
+      '<button class="h-del" onclick="deleteSession(\'' + s.id + '\')">Delete session</button></div></details>';
+  }).join(''));
 }
 function deleteSession(id){
   if(!confirm('Delete this session from the ledger?')) return;
@@ -1134,47 +1154,53 @@ function deletePlan(id){
   renderWeek();
 }
 
-function weekCard(key, i, plan, overdue){
+function weekCard(key, i, plan, earlier){
   const logged = doneOn(key);
   const names = plan ? (plan.entries||[]) : [];
   const actions = [];
   if(plan){
-    if(startable(key)) actions.push('<button class="primary" onclick="startPlan(\'' + plan.id + '\')">Start</button>');
-    actions.push('<button onclick="openPlanEditor(\'' + key + '\',\'' + plan.id + '\')">Edit</button>');
+    if(startable(key) && plan.day !== 'Rest') actions.push('<button class="primary" onclick="startPlan(\'' + plan.id + '\')">Start workout</button>');
+    actions.push('<button onclick="openPlanEditor(\'' + key + '\',\'' + plan.id + '\')">Edit plan</button>');
     actions.push('<button onclick="deletePlan(\'' + plan.id + '\')">Delete</button>');
   } else {
     actions.push('<button class="primary" onclick="openPlanEditor(\'' + key + '\')">Plan session</button>');
   }
-  return '<div class="week-day' + (key===todayKey()?' is-today':'') + '">' +
-    '<div class="week-top"><span class="week-label">' + esc(overdue ? 'Missed' : weekHeading(key, i)) + '</span>' +
-      '<span class="week-date">' + esc(weekDateLabel(key)) + '</span></div>' +
-    (plan
-      ? '<div class="week-day-type">' + esc(plan.day) + '</div>' +
-        (plan.notes ? '<div class="week-notes">' + esc(plan.notes) + '</div>' : '') +
-        names.map(e =>
-          '<div class="week-ex"><div class="n">' + esc(e.exercise) + '</div>' +
-          (e.note ? '<div class="note">' + esc(e.note) + '</div>' : '') + '</div>'
-        ).join('')
-      : '<div class="week-logged">No session planned</div>') +
-    (logged.length ? '<div class="week-logged">Logged ' + logged.map(s => s.day).join(', ') + '</div>' : '') +
-    '<div class="week-actions">' + actions.join('') + '</div>' +
-  '</div>';
+  const label = earlier ? recordDate(atNoon(key)) : weekHeading(key, i);
+  const caption = plan ? plan.day + (names.length ? ' · ' + names.length + (names.length === 1 ? ' exercise' : ' exercises') : ' day') : logged.length ? 'Workout completed' : 'No session planned';
+  return '<details class="week-day record-row' + (key===todayKey()?' is-today':'') + '" data-row="' + (plan?.id || key) + '">' +
+    '<summary><span class="row-copy"><span class="row-title">' + esc(label) +
+      (!earlier ? '<span class="row-date">' + recordDate(atNoon(key)) + '</span>' : '') + '</span>' +
+      '<span class="row-caption' + (plan ? ' planned' : '') + '">' + esc(caption) + '</span></span><span class="row-chevron" aria-hidden="true">⌄</span></summary>' +
+    '<div class="row-detail">' +
+    (plan?.notes ? '<div class="week-notes">' + esc(plan.notes) + '</div>' : '') +
+    names.map(e => '<div class="week-ex"><div class="n">' + esc(e.exercise) + '</div>' +
+      (e.note ? '<div class="note">' + esc(e.note) + '</div>' : '') + '</div>').join('') +
+    (logged.length ? '<div class="week-logged">Logged ' + logged.map(s => esc(s.day)).join(', ') + '</div>' : '') +
+    '<div class="week-actions">' + actions.join('') + '</div></div></details>';
 }
 
 function renderWeek(){
   const wrap = document.getElementById('weekList');
   const today = todayKey();
-  const overdue = state.sessions
-    .filter(s => isPlanned(s) && dateKey(s.date) < today)
-    .sort((a,b)=> a.date.localeCompare(b.date));
+  const earlier = state.sessions.filter(s => isPlanned(s) && dateKey(s.date) < today)
+    .sort((a,b) => Date.parse(b.date) - Date.parse(a.date));
+  const past = document.getElementById('planRange').value === 'earlier';
+  document.getElementById('earlierOption').textContent = 'Earlier plans (' + earlier.length + ')';
+  document.getElementById('planHint').textContent = past ? 'Newest first. Open a plan to use it or make changes.' : 'Your next seven days, followed by any later plans.';
   let html = '';
-  if(overdue.length){
-    html += '<div class="week-section">Overdue</div>';
-    overdue.forEach(s => { html += weekCard(dateKey(s.date), -1, s, true); });
-    html += '<div class="week-section">Coming days</div>';
+  if(past){
+    html = earlier.map(s => weekCard(dateKey(s.date), -1, s, true)).join('') || '<div class="empty"><b>All caught up</b>No earlier plans to review.</div>';
+  } else {
+    const keys = weekKeys();
+    keys.forEach((key,i) => {
+      const plans = state.sessions.filter(s => isPlanned(s) && dateKey(s.date) === key);
+      html += plans.length ? plans.map(s => weekCard(key,i,s,false)).join('') : weekCard(key,i,null,false);
+    });
+    const later = state.sessions.filter(s => isPlanned(s) && dateKey(s.date) > keys[keys.length-1])
+      .sort((a,b) => Date.parse(a.date) - Date.parse(b.date));
+    if(later.length) html += '<h3 class="list-section">Later plans</h3>' + later.map(s => weekCard(dateKey(s.date), -1, s, false)).join('');
   }
-  weekKeys().forEach((key, i) => { html += weekCard(key, i, planFor(key), false); });
-  wrap.innerHTML = html;
+  updateRecordList(wrap, html);
 }
 
 /* ---------- views ---------- */

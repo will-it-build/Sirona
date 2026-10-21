@@ -339,6 +339,41 @@ input,select,textarea{font-size:16px!important}
 @media(max-width:480px){header{flex-wrap:wrap;gap:4px}.today-date{font-size:10px}.header-right{margin-left:auto}.ex-name{overflow-wrap:anywhere}.add-set{flex-wrap:wrap}}
 
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+/* Quieter navigation and expandable lists: colour marks the next action. */
+:root{--chalk-dim:#a0a6ae}
+header,nav{max-width:760px;margin-inline:auto}
+main{max-width:680px;padding:24px 20px 48px}
+nav button{font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:500;letter-spacing:0;text-transform:none;min-height:52px}
+.page-heading{margin:6px 0 24px}
+.page-heading h1{font-size:30px;line-height:1.2;font-weight:600;letter-spacing:-.04em;margin-top:6px}
+.eyebrow{font-size:12px;color:var(--chalk-dim)}
+.field-label{display:block;font-size:12px;color:var(--chalk-dim)}
+.list-select,.history-tools input{display:block;width:100%;min-height:44px;background:var(--plate);border:1px solid var(--steel);border-radius:8px;padding:10px 12px;margin-top:6px;font-size:14px}
+.list-select{appearance:auto;-webkit-appearance:auto}
+#planRange{width:auto;min-width:190px}
+.history-tools{display:grid;grid-template-columns:minmax(0,1fr) 140px;gap:12px}
+.list-hint{font-size:12px;line-height:1.6;color:var(--chalk-dim);margin:16px 0 12px}
+.list-section{font-size:14px;font-weight:500;margin:28px 0 8px}
+.record-row{background:transparent;border:0;border-bottom:1px solid var(--steel);border-radius:0;padding:0;margin:0}
+.record-row.is-today{border-color:var(--steel)}
+.record-row summary{display:flex;align-items:center;gap:14px;list-style:none;cursor:pointer;min-height:82px;padding:18px 0}
+.record-row summary::-webkit-details-marker{display:none}
+.row-copy{flex:1;min-width:0}
+.row-title{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:16px;font-weight:500}
+.row-date{font-size:12px;color:var(--chalk-dim);font-weight:400;white-space:nowrap}
+.row-caption{display:block;margin-top:5px;font-size:13px;color:var(--chalk-dim)}
+.is-today .row-title,.row-caption.planned{color:var(--knurl)}
+.row-chevron{color:var(--chalk-dim);font-size:20px;transition:transform .15s}
+.record-row[open] .row-chevron{transform:rotate(180deg)}
+.row-detail{padding:0 0 20px;overflow-wrap:anywhere}
+.h-ex,.week-ex{border-top:0;padding:8px 0}
+.h-meta,.week-notes{font-family:inherit;font-size:13px;font-style:normal;line-height:1.6}
+.week-actions{margin-top:16px}
+.week-actions button,.h-del{min-height:44px}
+.h-del{padding:8px 0;color:var(--danger)}
+.empty b{font-family:inherit;font-size:18px;letter-spacing:0;text-transform:none}
+@media(max-width:380px){main{padding-inline:16px}.history-tools{grid-template-columns:minmax(0,1fr)}.row-title{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){.row-chevron{transition:none}}
 </style>
 </head>
 <body>
@@ -389,8 +424,8 @@ input,select,textarea{font-size:16px!important}
 
 <nav role="tablist" id="appNav" hidden>
   <button role="tab" aria-selected="true"  id="tab-today"    onclick="showView('today')">Today</button>
-  <button role="tab" aria-selected="false" id="tab-week"     onclick="showView('week')">Week</button>
-  <button role="tab" aria-selected="false" id="tab-history"  onclick="showView('history')">Ledger</button>
+  <button role="tab" aria-selected="false" id="tab-week"     onclick="showView('week')">Plan</button>
+  <button role="tab" aria-selected="false" id="tab-history"  onclick="showView('history')">History</button>
   <button role="tab" aria-selected="false" id="tab-progress" onclick="showView('progress')">Progress</button>
 </nav>
 
@@ -433,6 +468,10 @@ input,select,textarea{font-size:16px!important}
   </section>
 
   <section id="view-week" hidden>
+    <div class="page-heading"><p class="eyebrow">Make room for movement</p><h1>Your plan</h1></div>
+    <label class="field-label" for="planRange">Show plans</label>
+    <select class="list-select" id="planRange" onchange="renderWeek()"><option value="upcoming">Upcoming</option><option value="earlier" id="earlierOption">Earlier plans</option></select>
+    <p class="list-hint" id="planHint"></p>
     <div id="planEditor" hidden></div>
     <div id="weekList"></div>
   </section>
@@ -446,6 +485,12 @@ input,select,textarea{font-size:16px!important}
   </section>
 
   <section id="view-history" hidden>
+    <div class="page-heading"><p class="eyebrow">Every session counts</p><h1>Your history</h1></div>
+    <div class="history-tools">
+      <label class="field-label">Find a session<input id="historySearch" type="search" placeholder="Exercise or notes…" oninput="renderHistory()"></label>
+      <label class="field-label">Workout<select class="list-select" id="historyType" onchange="renderHistory()"><option value="">All workouts</option><option>Push</option><option>Pull</option><option>Legs</option></select></label>
+    </div>
+    <p class="list-hint" id="historyCount" role="status"></p>
     <div id="historyList"></div>
     <div class="io">
       <button onclick="exportData()">Export JSON</button>
