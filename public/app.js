@@ -68,13 +68,14 @@ const sync = {
   },
 };
 let authMode = 'login';
+let signupAvailable = false;
 let resetToken = '';
 let releaseTab = null;
 async function claimTab() {
   if (releaseTab || !navigator.locks) return;
   await new Promise((resolve, reject) => {
     void navigator.locks.request('sirona-editor', { ifAvailable: true }, async lock => {
-      if (!lock) { reject(new Error('Sirona is open in another tab. Close that tab, then try again.')); return; }
+      if (!lock) { reject(new Error('GymSpear is open in another tab. Close that tab, then try again.')); return; }
       await new Promise(release => { releaseTab = release; resolve(); });
       releaseTab = null;
     });
@@ -101,7 +102,7 @@ function showAuth(mode) {
   document.getElementById('authPassWrap').hidden = mode === 'forgot';
   document.getElementById('authPass2Wrap').hidden = !['signup', 'reset'].includes(mode);
   document.getElementById('authForgotBtn').hidden = mode !== 'login';
-  document.getElementById('authSignupBtn').hidden = mode !== 'login';
+  document.getElementById('authSignupBtn').hidden = mode !== 'login' || !signupAvailable;
   document.getElementById('authBackBtn').hidden = mode === 'login';
   const labels = {
     login: ['Welcome back', 'Sign in to your private training log.', 'Log in'],
@@ -138,6 +139,7 @@ async function activate(user) {
   sync.loggedIn = true;
   setShell(true, true);
   document.getElementById('accountName').textContent = user.username;
+  document.getElementById('exportLegacyBtn').hidden = !user.legacyOwner || !localStorage.getItem('sirona-v1');
   repainting = true;
   renderDayRow(); renderExercises(); renderPicker(); renderHistory(); renderWeek(); renderProgress();
   repainting = false;
@@ -188,6 +190,7 @@ async function bootAuth() {
   if (resetToken) { showAuth('reset'); return; }
   try { const result = await sync.api('/api/me'); await activate(result.user); }
   catch (error) {
+    if (error.status === 401) signupAvailable = error.data?.signup === true;
     showAuth('login');
     if (error.status === 401) return;
     // A cached account is used only after a successful earlier sign-in on this device.
@@ -753,11 +756,22 @@ function deleteSession(id){
 }
 
 /* ---------- import / export ---------- */
+function exportLegacyData(){
+  // Never assign a shared legacy cache to a new public account or overwrite it.
+  if (!currentUser?.legacyOwner) return;
+  const raw = localStorage.getItem('sirona-v1');
+  if (!raw) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([raw], {type:'application/json'}));
+  a.download = 'sirona-device-recovery.json';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+window.exportLegacyData = exportLegacyData;
 function exportData(){
   const blob = new Blob([JSON.stringify({sessions: state.sessions, draft, pending: engine?.pending || {}},null,2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'sirona-export.json';
+  a.download = 'gymspear-export.json';
   a.click(); URL.revokeObjectURL(a.href);
 }
 function validImportedSession(s) { return validateRecord('session:' + s.id, s); }
@@ -778,7 +792,7 @@ function importData(){
         hydrateTodayPlan();
         renderHistory(); renderExercises(); renderWeek();
         alert('Imported ' + imported.length + ' sessions.');
-      }catch(e){ alert('That file is not a Sirona export.'); }
+      }catch(e){ alert('That file is not a GymSpear export.'); }
     });
   };
   f.click();

@@ -48,6 +48,18 @@ function fixture() {
 const workout = (id = 'one') => ({ id, date: '2026-10-20T12:00:00Z', day: 'Push', status: 'done', entries: [{ exercise: 'Bench', sets: [{ w: 50, r: 8 }] }] });
 const mutation = (data, revision = 0, deleted = false) => ({ data, revision, deleted, mutationId: crypto.randomUUID() });
 
+test('public HTTP redirects to HTTPS before data access and HTTPS sets protective headers', async () => {
+  const redirect = await worker.fetch(new Request('http://gymspear.com/api/me'), {});
+  assert.equal(redirect.status, 308);
+  assert.equal(redirect.headers.get('Location'), 'https://gymspear.com/api/me');
+  const response = await worker.fetch(new Request('https://gymspear.com/'), {ASSETS:{fetch:async()=>new Response('app')}});
+  assert.equal(await response.text(), 'app');
+  assert.match(response.headers.get('Strict-Transport-Security'), /max-age=/);
+  assert.equal(response.headers.get('Referrer-Policy'), 'no-referrer');
+  const local = await worker.fetch(new Request('http://localhost/'), {ASSETS:{fetch:async()=>new Response('local')}});
+  assert.equal(local.status, 200);
+});
+
 test('public accounts are case-insensitively unique and cookies are secure', async () => {
   const f = fixture(); const a = await f.signup('alice');
   const dup = await f.request('/api/signup', { method: 'POST', body: { username: 'ALICE', email: 'other@example.com', password: 'a-strong-test-password' } });
@@ -98,6 +110,17 @@ test('draft saves persist and malformed records never enter storage', async () =
   assert.equal((await f.request('/api/v2/records/session:one', { ...a, method: 'PUT', body: mutation(invalid) })).status, 400);
   assert.equal((await f.request('/api/v2/records/session:bad%27id', { ...a, method: 'PUT', body: mutation(workout()) })).status, 400);
   assert.equal((await f.request('/api/v2/records/draft:active', { ...a, method: 'PUT', body: mutation({ ...draft, id: "bad'id" }, 1) })).status, 400);
+});
+
+test('planned rest days survive saving and edits without accepting rest workouts', async () => {
+  const f = fixture(), a = await f.signup('alice');
+  const plan = { id: 'plan-rest', date: '2026-10-21T12:00:00Z', day: 'Rest', status: 'planned', entries: [] };
+  const put = data => f.request('/api/v2/records/session:plan-rest', { ...a, method: 'PUT', body: data });
+  assert.equal((await put(mutation(plan))).status, 200);
+  assert.equal((await put(mutation({...plan, notes: 'Recovery day'}, 1))).status, 200);
+  assert.equal((await put(mutation({...plan, status:'done'}, 2))).status, 400);
+  assert.equal((await put(mutation({...plan, entries:workout().entries}, 2))).status, 400);
+  assert.equal((await f.request('/api/v2/records/draft:active', { ...a, method:'PUT', body:mutation({day:'Rest',entries:[]}) })).status, 400);
 });
 
 test('maintenance mode blocks API access before touching an unmigrated database', async () => {

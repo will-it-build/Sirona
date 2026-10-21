@@ -140,7 +140,7 @@ async function handle(request, env, url) {
       try {
         const sent = await fetch('https://api.resend.com/emails', { method: 'POST', signal: AbortSignal.timeout(10000),
           headers: { Authorization: 'Bearer ' + env.RESEND_API_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: env.MAIL_FROM, to: [user.email], subject: 'Reset your Sirona password',
+          body: JSON.stringify({ from: env.MAIL_FROM, to: [user.email], subject: 'Reset your GymSpear password',
             text: `Reset your password using this link within one hour:\n${url.origin}/?reset=${raw}\n\nIf you did not request this, ignore this email.` }),
         });
         delivered = sent.ok;
@@ -209,21 +209,34 @@ async function handle(request, env, url) {
       return json({ record: record(changed) });
     }
   }
-  if (path.startsWith('/api/sessions') || path === '/api/setup') fail(426, 'Sirona has been updated. Reload the app before saving.');
+  if (path.startsWith('/api/sessions') || path === '/api/setup') fail(426, 'GymSpear has been updated. Reload the app before saving.');
   fail(404, 'Not found.');
 }
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    if (url.protocol === 'http:' && !local) {
+      url.protocol = 'https:';
+      return Response.redirect(url.href, 308);
+    }
+    const response = await serve(request, env, url);
+    const secured = new Response(response.body, response);
+    secured.headers.set('Referrer-Policy', 'no-referrer');
+    secured.headers.set('X-Content-Type-Options', 'nosniff');
+    if (url.protocol === 'https:') secured.headers.set('Strict-Transport-Security', 'max-age=15552000');
+    return secured;
+  },
+};
+async function serve(request, env, url) {
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     // Checked before any database access so this build can freeze legacy writes
     // before the additive migration is applied.
-    if (env.MAINTENANCE_MODE === 'true') return json({ error: 'Sirona is being updated. Your changes remain on this device. Please retry shortly.' }, 503, { 'Retry-After': '300' });
+    if (env.MAINTENANCE_MODE === 'true') return json({ error: 'GymSpear is being updated. Your changes remain on this device. Please retry shortly.' }, 503, { 'Retry-After': '300' });
     try { return await handle(request, env, url); }
     catch (e) {
       if (!e.status) console.error('api_request_failed', { path: url.pathname, method: request.method });
       return json({ error: e.status ? e.message : 'Could not complete the request. Please try again.' }, e.status || 500,
         e.status === 429 ? { 'Retry-After': '900' } : {});
     }
-  },
-};
+}

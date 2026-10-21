@@ -1,10 +1,10 @@
-# Sirona — training log
+# GymSpear — training log
 
 A responsive workout logger with private accounts, weekly planning, exercise
-history and progress charts. Sirona remains the working name and current domain.
+history and progress charts. GymSpear is the chosen product name. The app is live at https://gymspear.com; the old Sirona origin remains available for recovery.
 
-This branch prepares the public-account release. Public signup is disabled in
-production configuration until recovery email and the migration are verified.
+The private-account foundation and ownership migration are deployed. Public signup
+remains disabled while the remaining launch controls and device checks are completed.
 See [RELEASE.md](RELEASE.md) before deploying an existing database.
 
 ## Run locally
@@ -81,8 +81,9 @@ if the same file is imported repeatedly. Export includes the draft and pending
 queue for recovery; the ordinary import control imports only sessions.
 
 The previous unscoped `sirona-v1` cache is preserved but never automatically
-assigned to a public account. Export it from the old app before rollout and review
-any unsynced sessions against the migrated ledger before importing missing ones.
+assigned to a public account. The original owner can export it from Ledger using “Export old Sirona device data”
+at the old origin. Review unsynced sessions against the migrated ledger before
+importing missing ones. The export never assigns data to a new account.
 
 The retired shared `/api/sessions` API rejects requests with an update-required
 response. There is no shared bearer-token backdoor for records.
@@ -109,3 +110,14 @@ Create a separate D1 database, update its binding and your route in
 `wrangler.jsonc`, and apply migrations to that database before deploying. Do not
 point a fork or preview at the production Sirona database. Backups and migration
 checks are still required when updating an existing installation.
+
+## Encryption boundaries
+
+Cloudflare D1 encrypts data at rest with provider-managed AES-256 keys, and HTTPS
+protects browser/server traffic; public HTTP requests redirect to HTTPS and HTTPS
+responses carry an HSTS policy. Records share a database and are isolated by
+server-enforced ownership checks. This is not per-user-key or end-to-end encryption:
+authorised backend/database administrators can access records. The offline browser
+cache is account-scoped but not encrypted by this app. Private local SQL backups
+are also not application-encrypted; their directory/file permissions are restricted.
+See https://developers.cloudflare.com/d1/reference/data-security/.

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0d10">
-<title>Sirona — Training Log</title>
+<title>GymSpear — Training Log</title>
 <meta name="description" content="Build a steady training routine with a private workout log, weekly planning and progress tracking.">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
@@ -343,7 +343,7 @@ input,select,textarea{font-size:16px!important}
 </head>
 <body>
 <header>
-  <div class="brand">Sir<em>o</em>na</div>
+  <div class="brand">Gym<em>Spear</em></div>
   <div class="today-date" id="todayDate"></div>
   <div class="header-right">
     <span id="accountName" class="sr-only"></span>
@@ -450,6 +450,7 @@ input,select,textarea{font-size:16px!important}
     <div class="io">
       <button onclick="exportData()">Export JSON</button>
       <button onclick="importData()">Import JSON</button>
+      <button id="exportLegacyBtn" onclick="exportLegacyData()" hidden>Export old Sirona device data</button>
     </div>
     <input type="file" id="importFile" accept="application/json" hidden>
   </section>
@@ -474,7 +475,7 @@ input,select,textarea{font-size:16px!important}
 </div>
 
 <details class="install-help">
-  <summary>Use Sirona on your phone</summary>
+  <summary>Use GymSpear on your phone</summary>
   <p>On iPhone or iPad, open this page in Safari, choose Share, then Add to Home Screen. On Android, use Install app when it appears, or your browser’s install menu.</p>
   <p>Changes are cached on this device for offline use. Sign out on shared devices. Only “All changes saved” confirms they have reached your account.</p>
 </details>

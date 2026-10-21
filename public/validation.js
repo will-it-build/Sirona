@@ -4,11 +4,13 @@ export function validateRecord(key, value) {
   const draft = key === 'draft:active';
   if (value.id !== undefined && !/^[a-zA-Z0-9_-]{1,100}$/.test(value.id)) return false;
   if (!draft && (!key.startsWith('session:') || key.slice(8) !== value.id || !text(value.date, 40) || !Number.isFinite(Date.parse(value.date)))) return false;
-  if (!['Push', 'Pull', 'Legs'].includes(value.day)) return false;
+  const restPlan = !draft && value.status === 'planned' && value.day === 'Rest';
+  if (!['Push', 'Pull', 'Legs'].includes(value.day) && !restPlan) return false;
   if (!draft && value.status !== undefined && !['planned', 'done'].includes(value.status)) return false;
   if (value.planId !== undefined && !/^[a-zA-Z0-9_-]{1,100}$/.test(value.planId)) return false;
   if (value.notes !== undefined && !text(value.notes)) return false;
   if (!Array.isArray(value.entries) || value.entries.length > 100) return false;
+  if (restPlan && value.entries.length) return false;
   if (!value.entries.every(e => e && text(e.exercise, 200) && e.exercise.trim() &&
       (e.group === undefined || text(e.group, 200)) && (e.note === undefined || text(e.note)) &&
       Array.isArray(e.sets) && e.sets.length <= 100 && e.sets.every(s => s &&

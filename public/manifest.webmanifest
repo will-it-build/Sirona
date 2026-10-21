@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Sirona Training Log",
-  "short_name": "Sirona",
+  "name": "GymSpear Training Log",
+  "short_name": "GymSpear",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

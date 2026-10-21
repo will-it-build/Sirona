@@ -1,8 +1,28 @@
 # Release and recovery procedure
 
-Status: implementation tested locally; no production migration or release has
-been performed for this branch. Email sending and the new domain remain pending.
-The existing name and route are unchanged.
+Status: the migration and GymSpear domain cutover completed on 21 October 2026.
+Public signup remains closed. gymspear.com, www.gymspear.com and the old
+sirona.will-it-build.com origin serve the new account-isolated build over HTTPS.
+
+The pre-migration backup was restored locally and passed integrity checks. A
+migration rehearsal preserved the account and all 29 payloads exactly. Production
+checks then confirmed 29 original records, 29 migrated records and zero payload or
+ownership mismatches. Original users, password hashes, auth tokens and reset tokens
+were unchanged by migration. The original sessions table is retained for recovery.
+Private backups and the cutover log are in the gitignored backups directory.
+
+Validation: 19 backend/sync tests, four browser flows, syntax and dry-run checks.
+Live disposable-account checks passed for login, secure cookies, account isolation,
+read/overwrite/delete protection, retries, second-device login and logout. Both
+test accounts and their records were removed; final counts are one owner and 29 records.
+Six existing rest-day plans exposed a validation bug; fixed without altering their payloads.
+
+Resend secrets are encrypted on the Worker; sending access is restricted to
+gymspear.com. Resend confirmed delivery of the new build's GymSpear recovery email.
+No owner password was changed. Owner sign-in, completing password recovery and
+actual iPhone/Android installation remain user/device checks. Native apps are deferred.
+
+The procedure below remains the runbook for future controlled releases.
 
 ## Before the release window
 
