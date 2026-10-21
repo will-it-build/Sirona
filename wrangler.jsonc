@@ -11,7 +11,7 @@
   "compatibility_date": "2026-08-01",
   "dev": { "host": "localhost" },
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
-  "vars": { "PUBLIC_SIGNUP": "false", "MAINTENANCE_MODE": "false" },
+  "vars": { "PUBLIC_SIGNUP": "false", "MAINTENANCE_MODE": "false", "AI_ENABLED": "true", "QWEN_BASE_URL": "https://maas.qwencloudapi.com/compatible-mode/v1" },
   "observability": { "enabled": true, "redact_query_string": true },
   "routes": [
     { "pattern": "sirona.will-it-build.com", "custom_domain": true },

@@ -54,7 +54,7 @@ test('an old cached app updates without clearing device drafts and stays availab
     await expect.poll(()=>page.evaluate(async()=> (await caches.keys()).includes('sirona-shell-old-test'))).toBe(false);
     await context.setOffline(true); await page.reload();
     await expect(page.locator('#authTitle')).toHaveText('Welcome back');
-    await expect(page.locator('.build-label')).toContainText('planner 2');
+    await expect(page.locator('.build-label')).toContainText('assistant preview');
     expect(await page.evaluate(()=>localStorage.getItem('sirona-v2:update-test'))).toBe(draft);
   } finally { await context.setOffline(false); await new Promise(resolve=>server.close(resolve)); }
 });

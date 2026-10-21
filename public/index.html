@@ -381,6 +381,29 @@ nav button{font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:5
 .empty b{font-family:inherit;font-size:18px;letter-spacing:0;text-transform:none}
 @media(max-width:380px){main{padding-inline:16px}.history-tools{grid-template-columns:minmax(0,1fr)}.row-title{flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){.row-chevron{transition:none}}
+/* Assistant: readable conversation with a quiet, fixed-width composer. */
+.ai-intro{color:var(--chalk-dim);line-height:1.6;margin:10px 0 20px;font-size:14px}
+.ai-tools,.ai-starters{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.ai-tools button,.ai-starters button{border:1px solid var(--steel);border-radius:20px;padding:10px 14px;min-height:44px;font-size:13px}
+.ai-starters button{color:var(--knurl)}
+.ai-welcome{font-size:20px;line-height:1.6;margin:30px 0;color:var(--chalk)}
+.ai-message{padding:22px 0;border-bottom:1px solid var(--steel);overflow-wrap:anywhere}
+.ai-message.user{padding:18px;margin:16px 0 0;background:var(--plate);border:0;border-radius:14px}
+.ai-speaker{font-size:12px;color:var(--knurl);margin-bottom:8px}
+.ai-copy{white-space:pre-wrap;line-height:1.7;font-size:15px}
+.ai-plan{margin:20px 0 0;border-left:2px solid var(--knurl);padding-left:16px}
+.ai-plan h2{font:600 19px Inter,system-ui,sans-serif;margin-bottom:14px}
+.ai-workout{margin:12px 0}.ai-workout summary{cursor:pointer;min-height:44px;padding:10px 0;font-weight:500}
+.ai-workout p,.ai-note{font-size:13px;line-height:1.6;color:var(--chalk-dim)}
+.ai-workout ul{list-style:none}.ai-workout li{padding:8px 0}.ai-workout li strong{display:block;font-weight:500;font-size:14px}
+.ai-workout li span{display:block;font-size:13px;color:var(--chalk-dim);line-height:1.6}
+.ai-save,#aiSend{background:var(--knurl);color:var(--iron);padding:12px 20px;border-radius:8px;min-height:44px;font-weight:600;margin-top:12px}
+#aiForm{margin-top:24px;border-top:1px solid var(--steel);padding-top:18px}
+#aiMessage{display:block;resize:vertical;width:100%;min-height:100px;background:var(--plate);border:1px solid var(--steel);border-radius:12px;padding:14px;margin:10px 0;font-size:16px}
+.ai-check{display:flex;gap:10px;align-items:flex-start;margin:14px 0;font-size:13px;line-height:1.6;color:var(--chalk-dim)}
+.ai-check input{accent-color:var(--knurl);margin-top:5px;width:18px;height:18px;flex-shrink:0}
+#aiStatus{font-size:13px;line-height:1.6;color:var(--knurl);margin:14px 0;min-height:20px}
+#view-assistant button:disabled{opacity:.5;cursor:default}
 </style>
 </head>
 <body>
@@ -435,9 +458,28 @@ nav button{font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:5
   <button role="tab" aria-selected="false" id="tab-week"     onclick="showView('week')">Plan</button>
   <button role="tab" aria-selected="false" id="tab-history"  onclick="showView('history')">History</button>
   <button role="tab" aria-selected="false" id="tab-progress" onclick="showView('progress')">Progress</button>
+  <button role="tab" aria-selected="false" id="tab-assistant" onclick="showView('assistant')">Assistant</button>
 </nav>
 
 <main id="appMain" hidden>
+  <section id="view-assistant" hidden aria-label="GymSpear AI assistant">
+    <div class="page-heading"><p class="eyebrow">A routine that fits you</p><h1>Let’s work it out.</h1></div>
+    <p class="ai-intro">Plan your training, talk through an exercise, or find your way around GymSpear. AI can make mistakes; review advice and plans. It does not provide medical care.</p>
+    <div class="ai-starters">
+      <button type="button" data-ai-prompt="Help me build a sustainable workout routine. Ask me what you need to know first.">Build a routine</button>
+      <button type="button" data-ai-prompt="How do I log a workout and see my progress in GymSpear?">Help with the app</button>
+    </div>
+    <div class="ai-tools"><button type="button" id="aiReload">Reload chat</button><button type="button" id="aiNewChat">Clear conversation</button><button type="button" data-ai-view="week">Open Plan</button></div>
+    <div id="aiMessages" aria-label="Conversation" aria-busy="false"></div>
+    <form id="aiForm">
+      <label for="aiMessage">Message GymSpear AI</label>
+      <textarea id="aiMessage" maxlength="1000" placeholder="I can train three days a week and have dumbbells…" required></textarea>
+      <label class="ai-check"><input type="checkbox" id="aiConsent"><span>I agree to send my messages and recent chat context to Qwen Cloud for a reply. My conversation is saved privately in my GymSpear account. Avoid sharing sensitive medical details.</span></label>
+      <label class="ai-check"><input type="checkbox" id="aiHistory"><span>Include my last three synced workouts (dates, exercises, weights and reps). Session notes, bodyweight and sleep are excluded.</span></label>
+      <button type="submit" id="aiSend" disabled>Send message</button>
+    </form>
+    <p id="aiStatus" role="status" aria-live="polite"></p>
+  </section>
   <section id="view-today">
     <div class="day-row" id="dayRow"></div>
 
@@ -542,8 +584,8 @@ nav button{font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:5
 </dialog>
 <footer>No forced reps. Ever.</footer>
 
-<p class="build-label">GymSpear · 21 Oct · planner 2</p>
-<script type="module" src="/app.js?v=9"></script>
+<p class="build-label">GymSpear · 21 Oct · assistant preview</p>
+<script type="module" src="/app.js?v=10"></script>
 
 </body>
 </html>

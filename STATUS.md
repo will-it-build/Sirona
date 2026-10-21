@@ -1,5 +1,29 @@
 # GymSpear status — 21 October 2026
 
+## Qwen assistant — deployed and live-verified
+
+Dedicated GymSpear Qwen Cloud key created and installed as encrypted Worker
+secret. Qwen3.7 Flash connection and a synthetic collaborative planning flow
+passed against the real provider. Assistant UI and additive migration built;
+35 automated backend/provider/sync tests and seven browser tests passed.
+
+The assistant provides private saved chat, workout/app help, opt-in limited
+workout context, reviewed plan creation and no ability to overwrite/delete
+records. Enforced limits: 20 messages/user/day, 50/app/day, 500/app/month.
+Provider account alert is USD 10/month, notifying at USD 8; it is not a hard cap.
+No Workers AI quota is used. Public signup remains disabled.
+
+Local production database export was blocked by automatic approval review.
+Instead, recorded Cloudflare's existing recovery bookmark without exporting
+private records: 000000ab-00000000-0000510b-f1edadef6f63d35ea732439029480c60.
+Pre-deployment counts: one user, 30 active records (workouts plus draft).
+Live version: df588cf5-c8ee-49aa-8e27-ba3baf6bb775. Verified in Chrome using an
+isolated test account: app-help reply, generated workout preview, explicit plan
+acceptance, appearance in Plan and saved chat/acceptance after refresh. The
+original owner's 30 active records were unchanged. A Workers redirect-mode
+compatibility issue was found in the live check and fixed with regression coverage.
+See QWEN_SETUP.md for privacy, limits, testing and operations.
+
 ## Completed in production
 
 - gymspear.com purchased and active in Cloudflare; registration expires 21 October 2027.

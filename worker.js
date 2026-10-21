@@ -1,3 +1,4 @@
+import { assistantState, assistantChat, acceptSuggestion, clearAssistant } from './assistant.js';
 import { validateRecord, text } from './public/validation.js';
 import { sha256Hex, hashPassword, randomHex, validUsername, validPassword, validEmail, timingSafeEqual } from './auth.js';
 
@@ -179,6 +180,10 @@ async function handle(request, env, url) {
   if (!user) fail(401, 'Please log in.');
   if (path.startsWith('/api/v2/')) {
     if (request.headers.get('X-Sirona-User') !== user.id) fail(409, 'Account changed. Please reload and log in again.');
+    if (path === '/api/v2/assistant' && request.method === 'GET') return json(await assistantState(env,user));
+    if (path === '/api/v2/assistant/chat' && request.method === 'POST') return json(await assistantChat(env,user,await body(request)));
+    if (path === '/api/v2/assistant/accept' && request.method === 'POST') return json(await acceptSuggestion(env,user,await body(request)));
+    if (path === '/api/v2/assistant/clear' && request.method === 'POST') return json(await clearAssistant(env,user));
     if (path === '/api/v2/records' && request.method === 'GET') {
       const after = url.searchParams.get('after') || '';
       const { results } = await env.DB.prepare('SELECT * FROM records WHERE user_id=? AND key>? ORDER BY key LIMIT 201').bind(user.id, after).all();

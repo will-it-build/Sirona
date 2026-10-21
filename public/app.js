@@ -1,3 +1,4 @@
+import { createAssistant } from './assistant-ui.js';
 import { validateRecord } from './validation.js';
 import { RecordStore } from './sync.js';
 let engine = null;
@@ -27,7 +28,7 @@ const sync = {
   dot() { updateSaveStatus(); },
   async api(path, method = 'GET', data, userId = currentUser?.id) {
     const response = await fetch(path, { method, credentials: 'same-origin', cache: 'no-store',
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(path.startsWith('/api/v2/assistant') ? 45000 : 15000),
       headers: { ...(data ? { 'Content-Type': 'application/json' } : {}), ...(userId ? { 'X-Sirona-User': userId } : {}) },
       body: data ? JSON.stringify(data) : undefined,
     });
@@ -92,6 +93,7 @@ function authErr(message) {
   const el = document.getElementById('authErr'); el.hidden = !message; el.textContent = message || '';
 }
 function showAuth(mode) {
+  assistant.reset();
   authMode = mode;
   sync.loggedIn = false;
   setShell(false, false);
@@ -125,6 +127,7 @@ function applyMeta(meta) {
 async function activate(user) {
   await claimTab();
   if (engine) engine.active = false;
+  assistant.reset();
   currentUser = user;
   deviceError = '';
   engine = new RecordStore(user, localStorage, (path, method, data) => sync.api(path, method, data, user.id), updateSaveStatus);
@@ -1218,6 +1221,9 @@ function renderWeek(){
 
 /* ---------- views ---------- */
 function showView(v){
+  document.getElementById('view-assistant').hidden = v !== 'assistant';
+  document.getElementById('tab-assistant').setAttribute('aria-selected',v==='assistant');
+  if(v==='assistant') void assistant.load();
   document.getElementById('view-today').hidden    = v !== 'today';
   document.getElementById('view-week').hidden     = v !== 'week';
   document.getElementById('view-history').hidden  = v !== 'history';
@@ -1276,6 +1282,8 @@ if ('serviceWorker' in navigator) {
     void registration.update().catch(() => {});
   }).catch(() => {});
 }
+
+const assistant = createAssistant({api:(...args)=>sync.api(...args),onSaved:()=>sync.pull(),navigate:showView});
 
 /* ---------- boot ---------- */
 document.getElementById('todayDate').textContent =
