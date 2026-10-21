@@ -105,3 +105,24 @@ The planner/history appearance pass is deployed. Syntax checks, 19 backend/sync
 tests, five browser flows and the deployment dry run passed. The new browser flow
 checks earlier-plan ordering, later-plan visibility, search/type filters, expanded
 row/focus retention and rest-day start protection. Screenshots use synthetic data.
+
+## Today-first planner and update delivery — 21 October 2026
+
+The prior cache-first service worker could serve obsolete app.js alongside fresh
+HTML, reproducing nonfunctional new controls and old sorting. The entry module is
+now versioned and precached under its exact URL. A visible update action activates
+a waiting worker, then reloads; it blocks while a plan editor is open or a draft
+cannot be saved. It never deletes localStorage or automatically reloads mid-edit.
+A real service-worker regression test reproduces an old release and confirms that
+fresh HTML runs the new module, update activation works, local drafts survive and
+the updated shell reloads offline.
+
+Today is pinned above both planner lists. Explicit Upcoming / Earlier plans buttons
+replace the ambiguous Show plans dropdown. Earlier plans sort newest first;
+Upcoming starts tomorrow after the pinned today row. History remains newest first.
+
+Security changes are specified in HARDENING.md; no authentication algorithm or
+production account data was changed as part of this UI/update fix.
+
+Validation: all six browser flows passed, including old-cache upgrade, offline
+reload and preservation of device drafts; syntax and deployment dry run passed.

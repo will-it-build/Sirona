@@ -350,7 +350,14 @@ nav button{font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:5
 .field-label{display:block;font-size:12px;color:var(--chalk-dim)}
 .list-select,.history-tools input{display:block;width:100%;min-height:44px;background:var(--plate);border:1px solid var(--steel);border-radius:8px;padding:10px 12px;margin-top:6px;font-size:14px}
 .list-select{appearance:auto;-webkit-appearance:auto}
-#planRange{width:auto;min-width:190px}
+.plan-switch{display:flex;gap:8px;margin-top:24px;border-bottom:1px solid var(--steel)}
+.plan-switch button{min-height:48px;padding:10px 12px;color:var(--chalk-dim);border-bottom:2px solid transparent;font-size:14px}
+.plan-switch button[aria-pressed="true"]{color:var(--knurl);border-bottom-color:var(--knurl)}
+#todayPlanList .row-title{font-size:20px}
+.app-update{max-width:680px;margin:12px auto;padding:12px 20px;background:var(--plate);font-size:13px;display:flex;align-items:center;gap:12px}
+.app-update button{min-height:44px;padding:8px 12px;color:var(--iron);background:var(--knurl);border-radius:6px;white-space:nowrap}
+.app-update p{flex:1}
+.build-label{text-align:center;color:var(--chalk-dim);font-size:11px;margin:0 0 16px}
 .history-tools{display:grid;grid-template-columns:minmax(0,1fr) 140px;gap:12px}
 .list-hint{font-size:12px;line-height:1.6;color:var(--chalk-dim);margin:16px 0 12px}
 .list-section{font-size:14px;font-weight:500;margin:28px 0 8px}
@@ -377,6 +384,7 @@ nav button{font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:5
 </style>
 </head>
 <body>
+<div id="appUpdate" class="app-update" hidden role="status"><p id="appUpdateText">An update is ready. Save any plan edits before reloading.</p><button id="applyAppUpdate">Update app</button></div>
 <header>
   <div class="brand">Gym<em>Spear</em></div>
   <div class="today-date" id="todayDate"></div>
@@ -469,10 +477,13 @@ nav button{font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:5
 
   <section id="view-week" hidden>
     <div class="page-heading"><p class="eyebrow">Make room for movement</p><h1>Your plan</h1></div>
-    <label class="field-label" for="planRange">Show plans</label>
-    <select class="list-select" id="planRange" onchange="renderWeek()"><option value="upcoming">Upcoming</option><option value="earlier" id="earlierOption">Earlier plans</option></select>
-    <p class="list-hint" id="planHint"></p>
+    <div id="todayPlanList" aria-label="Today’s plan"></div>
     <div id="planEditor" hidden></div>
+    <div class="plan-switch" role="group" aria-label="Other plans">
+      <button id="upcomingPlans" aria-pressed="true" onclick="setPlanRange('upcoming')">Upcoming</button>
+      <button id="earlierPlans" aria-pressed="false" onclick="setPlanRange('earlier')">Earlier plans <span id="earlierCount"></span></button>
+    </div>
+    <p class="list-hint" id="planHint"></p>
     <div id="weekList"></div>
   </section>
 
@@ -522,7 +533,7 @@ nav button{font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:5
 <details class="install-help">
   <summary>Use GymSpear on your phone</summary>
   <p>On iPhone or iPad, open this page in Safari, choose Share, then Add to Home Screen. On Android, use Install app when it appears, or your browser’s install menu.</p>
-  <p>Changes are cached on this device for offline use. Sign out on shared devices. Only “All changes saved” confirms they have reached your account.</p>
+  <p>Use offline access only on your own device. Signing out does not currently remove locally saved workouts. Only “All changes saved” confirms they have reached your account.</p>
 </details>
 <dialog id="conflictDialog" aria-labelledby="conflictTitle">
   <h2 id="conflictTitle">Review your changes</h2>
@@ -531,7 +542,8 @@ nav button{font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:5
 </dialog>
 <footer>No forced reps. Ever.</footer>
 
-<script type="module" src="/app.js"></script>
+<p class="build-label">GymSpear · 21 Oct · planner 2</p>
+<script type="module" src="/app.js?v=9"></script>
 
 </body>
 </html>

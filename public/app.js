@@ -1179,20 +1179,33 @@ function weekCard(key, i, plan, earlier){
     '<div class="week-actions">' + actions.join('') + '</div></div></details>';
 }
 
+let planRange = 'upcoming';
+function setPlanRange(range){
+  planRange = range === 'earlier' ? 'earlier' : 'upcoming';
+  renderWeek();
+}
 function renderWeek(){
   const wrap = document.getElementById('weekList');
   const today = todayKey();
   const earlier = state.sessions.filter(s => isPlanned(s) && dateKey(s.date) < today)
     .sort((a,b) => Date.parse(b.date) - Date.parse(a.date));
-  const past = document.getElementById('planRange').value === 'earlier';
-  document.getElementById('earlierOption').textContent = 'Earlier plans (' + earlier.length + ')';
-  document.getElementById('planHint').textContent = past ? 'Newest first. Open a plan to use it or make changes.' : 'Your next seven days, followed by any later plans.';
+  const past = planRange === 'earlier';
+  const todayList = document.getElementById('todayPlanList');
+  const firstRender = !todayList.children.length;
+  const todayPlans = state.sessions.filter(s => isPlanned(s) && dateKey(s.date) === today);
+  updateRecordList(todayList, todayPlans.length ? todayPlans.map(s => weekCard(today,0,s,false)).join('') : weekCard(today,0,null,false));
+  if(firstRender) todayList.querySelector('details').open = true;
+  document.getElementById('earlierCount').textContent = '(' + earlier.length + ')';
+  document.getElementById('upcomingPlans').setAttribute('aria-pressed', !past);
+  document.getElementById('earlierPlans').setAttribute('aria-pressed', past);
+  document.getElementById('planHint').textContent = past ? 'Earlier plans · newest first. Open one to start or edit it.' : 'After today · next session first.';
   let html = '';
   if(past){
     html = earlier.map(s => weekCard(dateKey(s.date), -1, s, true)).join('') || '<div class="empty"><b>All caught up</b>No earlier plans to review.</div>';
   } else {
     const keys = weekKeys();
     keys.forEach((key,i) => {
+      if(i === 0) return; // Today stays above both lists.
       const plans = state.sessions.filter(s => isPlanned(s) && dateKey(s.date) === key);
       html += plans.length ? plans.map(s => weekCard(key,i,s,false)).join('') : weekCard(key,i,null,false);
     });
@@ -1219,7 +1232,7 @@ function showView(v){
 }
 
 // Existing inline button handlers call only these named UI functions.
-Object.assign(window, {updateSaveStatus,claimTab,setShell,authErr,showAuth,applyMeta,activate,submitAuth,logout,bootAuth,saveDraft,updateExerciseNote,reviewConflicts,isPlanned,isDone,dateKey,parseKey,atNoon,todayKey,planFor,doneOn,guessDay,lastPerformance,fmtDate,esc,plateBreakdown,renderPlates,renderDayRow,setDay,groupsForDay,exercisesForGroup,renderPicker,onGroupChange,onExChange,updateAddBtn,addExercise,clampRest,restKindAfterSet,restNextName,restCurrentEi,fmtRest,restRemaining,sessionLoggerOpen,announceRest,paintRestSlider,startRest,applyKindDuration,promoteRestSwitch,toggleRestKind,setRestSeconds,skipRest,clearRest,restEnds,updateRestBar,renderExercises,removeExercise,addSet,removeSet,readMeta,clearMeta,finishSession,metaLine,renderHistory,deleteSession,exportData,validImportedSession,importData,e1rm,exerciseHistory,renderProgressSelect,sparkline,renderProgress,weekKeys,weekHeading,weekDateLabel,startable,applyPlan,hydrateTodayPlan,startPlan,openPlanEditor,closePlanEditor,setPlanDay,movePlanEx,removePlanEx,updatePlanNote,updatePlanSessionNote,renderPlanPicker,onPlanGroupChange,onPlanExChange,updatePlanAddBtn,addPlanExercise,renderPlanEditor,savePlan,deletePlan,weekCard,renderWeek,showView});
+Object.assign(window, {updateSaveStatus,claimTab,setShell,authErr,showAuth,applyMeta,activate,submitAuth,logout,bootAuth,saveDraft,updateExerciseNote,reviewConflicts,isPlanned,isDone,dateKey,parseKey,atNoon,todayKey,planFor,doneOn,guessDay,lastPerformance,fmtDate,esc,plateBreakdown,renderPlates,renderDayRow,setDay,groupsForDay,exercisesForGroup,renderPicker,onGroupChange,onExChange,updateAddBtn,addExercise,clampRest,restKindAfterSet,restNextName,restCurrentEi,fmtRest,restRemaining,sessionLoggerOpen,announceRest,paintRestSlider,startRest,applyKindDuration,promoteRestSwitch,toggleRestKind,setRestSeconds,skipRest,clearRest,restEnds,updateRestBar,renderExercises,removeExercise,addSet,removeSet,readMeta,clearMeta,finishSession,metaLine,renderHistory,deleteSession,exportData,validImportedSession,importData,e1rm,exerciseHistory,renderProgressSelect,sparkline,renderProgress,weekKeys,weekHeading,weekDateLabel,startable,applyPlan,hydrateTodayPlan,startPlan,openPlanEditor,closePlanEditor,setPlanDay,movePlanEx,removePlanEx,updatePlanNote,updatePlanSessionNote,renderPlanPicker,onPlanGroupChange,onPlanExChange,updatePlanAddBtn,addPlanExercise,renderPlanEditor,savePlan,deletePlan,weekCard,setPlanRange,renderWeek,showView});
 document.addEventListener('input', event => {
   if (['mBw','mSleep','mCommute','mCommuteTime','mFeel'].includes(event.target.id)) saveDraft();
 });
@@ -1235,7 +1248,34 @@ document.getElementById('reviewConflicts').addEventListener('click', reviewConfl
 let installPrompt;
 window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); installPrompt = event; document.getElementById('installApp').hidden = false; });
 document.getElementById('installApp').addEventListener('click', async () => { if(installPrompt) { await installPrompt.prompt(); installPrompt = null; document.getElementById('installApp').hidden = true; } });
-if ('serviceWorker' in navigator) void navigator.serviceWorker.register('/sw.js').catch(() => {});
+// Versioned entry script avoids mixing fresh HTML with an older cached UI.
+// Activation remains explicit so an update cannot interrupt unsaved plan edits.
+if ('serviceWorker' in navigator) {
+  let updating = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if(updating) location.reload();
+  });
+  void navigator.serviceWorker.register('/sw.js', {updateViaCache:'none'}).then(registration => {
+    const banner = document.getElementById('appUpdate');
+    const showUpdate = () => { if(registration.waiting && navigator.serviceWorker.controller) banner.hidden = false; };
+    showUpdate();
+    registration.addEventListener('updatefound', () => {
+      const worker = registration.installing;
+      worker?.addEventListener('statechange', showUpdate);
+    });
+    document.getElementById('applyAppUpdate').addEventListener('click', () => {
+      if(planEdit){ alert('Save or cancel your open plan before updating.'); return; }
+      saveDraft();
+      if(deviceError){ alert('Your draft could not be saved on this device. Export it before updating.'); return; }
+      updating = true;
+      document.getElementById('applyAppUpdate').disabled = true;
+      document.getElementById('appUpdateText').textContent = 'Updating GymSpear…';
+      if(registration.waiting) registration.waiting.postMessage({type:'APPLY_UPDATE'});
+      else location.reload();
+    });
+    void registration.update().catch(() => {});
+  }).catch(() => {});
+}
 
 /* ---------- boot ---------- */
 document.getElementById('todayDate').textContent =

@@ -112,11 +112,13 @@ test('planner separates earlier plans; history searches and filters newest first
   });
   await page.reload(); await expect(page.locator('#appMain')).toBeVisible();
   await page.locator('#tab-week').click();
-  await expect(page.locator('#weekList .record-row').first()).toHaveAttribute('data-row','today-plan');
+  await expect(page.locator('#todayPlanList .record-row').first()).toHaveAttribute('data-row','today-plan');
   await expect(page.locator('[data-row="old-plan"]')).toHaveCount(0);
   await expect(page.locator('[data-row="later-plan"]')).toHaveCount(1);
   await page.screenshot({path:'test-results/mobile-plan.png',fullPage:true});
-  await page.locator('#planRange').selectOption('earlier');
+  await page.locator('#earlierPlans').click();
+  await expect(page.locator('#todayPlanList .record-row').first()).toHaveAttribute('data-row','today-plan');
+  await expect(page.locator('#earlierPlans')).toHaveAttribute('aria-pressed','true');
   await expect(page.locator('#weekList .record-row').first()).toHaveAttribute('data-row','recent-plan');
   const recent = page.locator('[data-row="recent-plan"]');
   await recent.locator('summary').click();
@@ -126,6 +128,11 @@ test('planner separates earlier plans; history searches and filters newest first
   await expect(recent.locator('summary')).toBeFocused();
   await page.locator('[data-row="rest-plan"] summary').click();
   await expect(page.locator('[data-row="rest-plan"]').getByRole('button',{name:'Start workout'})).toHaveCount(0);
+  await page.screenshot({path:'test-results/mobile-earlier-plans.png',fullPage:true});
+  await page.locator('#upcomingPlans').click();
+  await expect(page.locator('#upcomingPlans')).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('[data-row="recent-plan"]')).toHaveCount(0);
+  await expect(page.locator('#todayPlanList .record-row').first()).toHaveAttribute('data-row','today-plan');
   await page.locator('#tab-history').click();
   await expect(page.locator('.h-session').first()).toHaveAttribute('data-row','recent-workout');
   await page.locator('#historySearch').fill('bench');
