@@ -1,5 +1,5 @@
 {
-  // Sirona — training log (Will It Build 002)
+  // GymSpear — keep the existing Worker and database identities for continuity.
   // Deploy:  npx wrangler deploy
   // Login is username/password in D1 (session cookie). Optional reset mail:
   //   npx wrangler secret put RESEND_API_KEY
@@ -9,15 +9,21 @@
   "name": "sirona",
   "main": "worker.js",
   "compatibility_date": "2026-08-01",
-  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "dev": { "host": "localhost" },
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
+  "vars": { "PUBLIC_SIGNUP": "false", "MAINTENANCE_MODE": "false", "AI_ENABLED": "true", "QWEN_BASE_URL": "https://maas.qwencloudapi.com/compatible-mode/v1" },
+  "observability": { "enabled": true, "redact_query_string": true },
   "routes": [
-    { "pattern": "sirona.will-it-build.com", "custom_domain": true }
+    { "pattern": "sirona.will-it-build.com", "custom_domain": true },
+    { "pattern": "gymspear.com", "custom_domain": true },
+    { "pattern": "www.gymspear.com", "custom_domain": true }
   ],
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "sirona-db",
-      "database_id": "235d3980-6a6d-434a-ac60-3b73e6d088ff"
+      "database_id": "235d3980-6a6d-434a-ac60-3b73e6d088ff",
+      "migrations_dir": "./migrations"
     }
   ]
 }

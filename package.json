@@ -1,0 +1,20 @@
+{
+  "name": "sirona",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node --test test/*.test.js",
+    "ai:check": "node scripts/check-qwen.mjs",
+    "test:browser": "playwright test",
+    "check": "node --check assistant.js && node --check qwen.js && node --check public/assistant-ui.js && node --check worker.js && node --check auth.js && node --check public/app.js && node --check public/sync.js && node --check public/validation.js && node --check public/sw.js",
+    "db:local": "wrangler d1 migrations apply sirona-db --local",
+    "deploy:check": "wrangler deploy --dry-run",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261019.1",
+    "@playwright/test": "^1.64.1",
+    "wrangler": "^4.151.3"
+  }
+}

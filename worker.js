@@ -1,359 +1,247 @@
-// Sirona — Worker backend
-// Serves static assets and a sync API backed by D1.
-// Auth: HttpOnly session cookie after username/password login.
-// Optional Bearer SIRONA_KEY still accepted for ops; the app does not use it.
+import { assistantState, assistantChat, acceptSuggestion, clearAssistant } from './assistant.js';
+import { validateRecord, text } from './public/validation.js';
+import { sha256Hex, hashPassword, randomHex, validUsername, validPassword, validEmail, timingSafeEqual } from './auth.js';
 
 const COOKIE = 'sirona';
-const SESSION_DAYS = 30;
-const RESET_MINUTES = 60;
-const PBKDF2_ITERS = 100000;
+const MAX_BODY = 128 * 1024;
+const DAY = 86400000;
+const unsafe = method => !['GET', 'HEAD', 'OPTIONS'].includes(method);
 
+function json(data, status = 200, extra = {}) {
+  return new Response(JSON.stringify(data), { status, headers: {
+    'Content-Type': 'application/json', 'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', ...extra,
+  } });
+}
+function cookie(request, token, maxAge = 30 * 86400) {
+  return `${COOKIE}=${token}; HttpOnly; Path=/; SameSite=Strict; Max-Age=${maxAge}${new URL(request.url).protocol === 'https:' ? '; Secure' : ''}`;
+}
+function cookieToken(request) {
+  return (request.headers.get('Cookie') || '').split(';').map(s => s.trim())
+    .find(s => s.startsWith(COOKIE + '='))?.slice(COOKIE.length + 1) || '';
+}
+function fail(status, message) { throw Object.assign(new Error(message), { status }); }
+async function body(request) {
+  if (!request.headers.get('Content-Type')?.startsWith('application/json')) fail(415, 'Send JSON.');
+  if (Number(request.headers.get('Content-Length')) > MAX_BODY) fail(413, 'Request is too large.');
+  const reader = request.body?.getReader();
+  if (!reader) fail(400, 'JSON body required.');
+  let size = 0;
+  const chunks = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_BODY) { await reader.cancel(); fail(413, 'Request is too large.'); }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+  try {
+    const data = JSON.parse(new TextDecoder().decode(bytes));
+    if (!data || typeof data !== 'object' || Array.isArray(data)) fail(400, 'JSON object required.');
+    return data;
+  } catch { fail(400, 'Invalid JSON.'); }
+}
+async function userFromCookie(request, env) {
+  const raw = cookieToken(request);
+  if (!/^[a-f0-9]{64}$/.test(raw)) return null;
+  return env.DB.prepare(`SELECT u.id, u.username, u.email FROM auth_tokens t
+    JOIN users u ON u.id=t.user_id WHERE t.token_hash=? AND t.expires_at>?`)
+    .bind(await sha256Hex(raw), new Date().toISOString()).first();
+}
+async function publicUser(env, user) {
+  const legacy = await env.DB.prepare("SELECT value FROM app_settings WHERE key='legacy_owner_id'").first();
+  return { id: user.id, username: user.username, email: user.email, legacyOwner: legacy?.value === user.id };
+}
+async function signedIn(request, env, user) {
+  const raw = randomHex(32), now = new Date();
+  await env.DB.prepare('INSERT INTO auth_tokens VALUES (?, ?, ?, ?)')
+    .bind(await sha256Hex(raw), user.id, now.toISOString(), new Date(+now + 30 * DAY).toISOString()).run();
+  return json({ user: await publicUser(env, user) }, 200, { 'Set-Cookie': cookie(request, raw) });
+}
+async function throttle(request, env, action, identity = '') {
+  // Persisted counters work across Worker instances. Never store raw IP addresses.
+  const now = Math.floor(Date.now() / 1000), window = 900;
+  const ip = request.headers.get('CF-Connecting-IP') || 'local';
+  const keys = [`${action}:ip:${ip}`, ...(identity ? [`${action}:account:${identity.toLowerCase()}`] : [])];
+  for (const [index, raw] of keys.entries()) {
+    const key = await sha256Hex(raw);
+    const row = await env.DB.prepare(`INSERT INTO auth_limits VALUES (?, 1, ?)
+      ON CONFLICT(key) DO UPDATE SET
+        attempts=CASE WHEN expires_at<=? THEN 1 ELSE attempts+1 END,
+        expires_at=CASE WHEN expires_at<=? THEN ? ELSE expires_at END RETURNING attempts`)
+      .bind(key, now + window, now, now, now + window).first();
+    const limit = action === 'signup' ? 10 : (index === 0 ? 60 : 10);
+    if (row.attempts > limit) fail(429, 'Too many attempts. Please try again in 15 minutes.');
+  }
+  await env.DB.prepare('DELETE FROM auth_limits WHERE expires_at<?').bind(now).run();
+}
+function record(row) {
+  return row ? { key: row.key, data: row.deleted ? null : JSON.parse(row.data), revision: row.revision,
+    deleted: !!row.deleted, mutationId: row.mutation_id, updatedAt: row.updated_at } : null;
+}
+async function handle(request, env, url) {
+  if (unsafe(request.method)) {
+    if (request.headers.get('Origin') !== url.origin) fail(403, 'Request origin not allowed.');
+    if (request.headers.get('Sec-Fetch-Site') === 'cross-site') fail(403, 'Request origin not allowed.');
+  }
+  const path = url.pathname;
+  if (path === '/api/me' && request.method === 'GET') {
+    const user = await userFromCookie(request, env);
+    return user ? json({ user: await publicUser(env, user) }) : json({ error: 'Please log in.', signup: env.PUBLIC_SIGNUP === 'true' }, 401);
+  }
+  if (path === '/api/signup' && request.method === 'POST') {
+    if (env.PUBLIC_SIGNUP !== 'true') fail(503, 'Sign-up is not open yet.');
+    await throttle(request, env, 'signup');
+    const b = await body(request);
+    const username = typeof b.username === 'string' ? b.username.trim() : '';
+    const email = typeof b.email === 'string' ? b.email.trim().toLowerCase() : '';
+    if (!validUsername(username) || !validEmail(email) || !validPassword(b.password) || b.password.length < 12)
+      fail(400, 'Use a valid username and email, and a password of 12–200 characters.');
+    const user = { id: randomHex(16), username, email }, salt = randomHex(16);
+    const hash = await hashPassword(b.password, salt);
+    try {
+      await env.DB.prepare('INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)')
+        .bind(user.id, username, email, salt, hash, new Date().toISOString()).run();
+    } catch (e) {
+      if (/UNIQUE constraint failed/i.test(e.message)) fail(409, 'That username or email is unavailable. Try logging in or resetting your password.');
+      throw e;
+    }
+    return signedIn(request, env, user);
+  }
+  if (path === '/api/login' && request.method === 'POST') {
+    const b = await body(request), identity = typeof b.username === 'string' ? b.username.trim().toLowerCase() : '';
+    if (!identity || identity.length > 160) fail(400, 'Username or email required.');
+    await throttle(request, env, 'login', identity);
+    const user = await env.DB.prepare('SELECT * FROM users WHERE lower(username)=? OR lower(email)=?').bind(identity, identity).first();
+    const valid = validPassword(b.password);
+    const check = await hashPassword(valid ? b.password : 'invalid-password', user?.password_salt || '00'.repeat(16));
+    if (!user || !valid || !timingSafeEqual(check, user.password_hash)) fail(401, 'Invalid username or password.');
+    return signedIn(request, env, user);
+  }
+  if (path === '/api/logout' && request.method === 'POST') {
+    await env.DB.prepare('DELETE FROM auth_tokens WHERE token_hash=?').bind(await sha256Hex(cookieToken(request))).run();
+    return json({ ok: true }, 200, { 'Set-Cookie': cookie(request, '', 0) });
+  }
+  if (path === '/api/forgot-password' && request.method === 'POST') {
+    const b = await body(request), identity = typeof b.username === 'string' ? b.username.trim().toLowerCase() : '';
+    if (!identity || identity.length > 160) fail(400, 'Username or email required.');
+    await throttle(request, env, 'reset', identity);
+    if (!env.RESEND_API_KEY || !env.MAIL_FROM) fail(503, 'Password recovery is temporarily unavailable. Please try again later.');
+    const user = await env.DB.prepare('SELECT id, email FROM users WHERE lower(username)=? OR lower(email)=?').bind(identity, identity).first();
+    if (user?.email) {
+      const raw = randomHex(32), now = new Date(), hash = await sha256Hex(raw);
+      await env.DB.batch([
+        env.DB.prepare('DELETE FROM password_resets WHERE user_id=?').bind(user.id),
+        env.DB.prepare('INSERT INTO password_resets VALUES (?, ?, ?, ?, NULL)').bind(hash, user.id, now.toISOString(), new Date(+now + 3600000).toISOString()),
+      ]);
+      let delivered = false;
+      try {
+        const sent = await fetch('https://api.resend.com/emails', { method: 'POST', signal: AbortSignal.timeout(10000),
+          headers: { Authorization: 'Bearer ' + env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: env.MAIL_FROM, to: [user.email], subject: 'Reset your GymSpear password',
+            text: `Reset your password using this link within one hour:\n${url.origin}/?reset=${raw}\n\nIf you did not request this, ignore this email.` }),
+        });
+        delivered = sent.ok;
+      } catch { /* Delivery failures must not reveal whether the account exists. */ }
+      if (!delivered) {
+        await env.DB.prepare('DELETE FROM password_resets WHERE token_hash=?').bind(hash).run();
+        // Do not reveal whether the requested account exists through the public response.
+        console.error('password_reset_delivery_failed');
+      }
+    }
+    return json({ ok: true });
+  }
+  if (path === '/api/reset-check' && request.method === 'GET') {
+    const row = await env.DB.prepare('SELECT user_id FROM password_resets WHERE token_hash=? AND used_at IS NULL AND expires_at>?')
+      .bind(await sha256Hex(url.searchParams.get('token') || ''), new Date().toISOString()).first();
+    return json({ ok: !!row }, row ? 200 : 400);
+  }
+  if (path === '/api/reset-password' && request.method === 'POST') {
+    await throttle(request, env, 'reset-submit');
+    const b = await body(request);
+    if (!text(b.token, 64) || !validPassword(b.password) || b.password.length < 12) fail(400, 'Invalid reset link or password. Use at least 12 characters.');
+    const hash = await sha256Hex(b.token), now = new Date().toISOString(), salt = randomHex(16);
+    const passwordHash = await hashPassword(b.password, salt);
+    const results = await env.DB.batch([
+      env.DB.prepare(`UPDATE users SET password_salt=?, password_hash=? WHERE id IN
+        (SELECT user_id FROM password_resets WHERE token_hash=? AND used_at IS NULL AND expires_at>?) RETURNING id, username, email`)
+        .bind(salt, passwordHash, hash, now),
+      env.DB.prepare('UPDATE password_resets SET used_at=? WHERE token_hash=? AND used_at IS NULL').bind(now, hash),
+      env.DB.prepare('DELETE FROM auth_tokens WHERE user_id IN (SELECT id FROM users WHERE password_salt=?)').bind(salt),
+    ]);
+    const user = results[0].results[0];
+    if (!user) fail(400, 'Reset link expired or already used.');
+    return signedIn(request, env, user);
+  }
+  const user = await userFromCookie(request, env);
+  if (!user) fail(401, 'Please log in.');
+  if (path.startsWith('/api/v2/')) {
+    if (request.headers.get('X-Sirona-User') !== user.id) fail(409, 'Account changed. Please reload and log in again.');
+    if (path === '/api/v2/assistant' && request.method === 'GET') return json(await assistantState(env,user));
+    if (path === '/api/v2/assistant/chat' && request.method === 'POST') return json(await assistantChat(env,user,await body(request)));
+    if (path === '/api/v2/assistant/accept' && request.method === 'POST') return json(await acceptSuggestion(env,user,await body(request)));
+    if (path === '/api/v2/assistant/clear' && request.method === 'POST') return json(await clearAssistant(env,user));
+    if (path === '/api/v2/records' && request.method === 'GET') {
+      const after = url.searchParams.get('after') || '';
+      const { results } = await env.DB.prepare('SELECT * FROM records WHERE user_id=? AND key>? ORDER BY key LIMIT 201').bind(user.id, after).all();
+      return json({ records: results.slice(0, 200).map(record), next: results.length > 200 ? results[199].key : null });
+    }
+    if (path.startsWith('/api/v2/records/') && request.method === 'PUT') {
+      const key = decodeURIComponent(path.slice('/api/v2/records/'.length));
+      if (!/^(session:[a-zA-Z0-9_-]{1,100}|draft:active)$/.test(key)) fail(400, 'Invalid record key.');
+      const b = await body(request);
+      if (!Number.isSafeInteger(b.revision) || b.revision < 0 || !/^[a-f0-9-]{36}$/.test(b.mutationId)) fail(400, 'Invalid save revision.');
+      if (b.deleted !== undefined && typeof b.deleted !== 'boolean') fail(400, 'Invalid deletion flag.');
+      if (key === 'draft:active' && b.deleted) fail(400, 'Save an empty draft to clear it.');
+      if (!b.deleted && !validateRecord(key, b.data)) fail(400, 'Invalid workout. Check exercise names, dates and sets.');
+      const previous = await env.DB.prepare('SELECT * FROM records WHERE user_id=? AND key=?').bind(user.id, key).first();
+      if (previous?.mutation_id === b.mutationId) return json({ record: record(previous) });
+      if ((previous?.revision || 0) !== b.revision || previous?.deleted) return json({ error: 'This record changed on another device.', conflict: true, record: record(previous) }, 409);
+      const changed = await env.DB.prepare(`INSERT INTO records (user_id, key, data, revision, deleted, mutation_id, updated_at)
+        VALUES (?, ?, ?, 1, ?, ?, ?) ON CONFLICT(user_id, key) DO UPDATE SET
+        data=excluded.data, revision=records.revision+1, deleted=excluded.deleted,
+        mutation_id=excluded.mutation_id, updated_at=excluded.updated_at
+        WHERE records.revision=? AND records.deleted=0 RETURNING *`)
+        .bind(user.id, key, b.deleted ? null : JSON.stringify(b.data), b.deleted ? 1 : 0, b.mutationId, new Date().toISOString(), b.revision).first();
+      if (!changed) {
+        const current = await env.DB.prepare('SELECT * FROM records WHERE user_id=? AND key=?').bind(user.id, key).first();
+        if (current?.mutation_id === b.mutationId) return json({ record: record(current) });
+        return json({ error: 'This record changed on another device.', conflict: true, record: record(current) }, 409);
+      }
+      return json({ record: record(changed) });
+    }
+  }
+  if (path.startsWith('/api/sessions') || path === '/api/setup') fail(426, 'GymSpear has been updated. Reload the app before saving.');
+  fail(404, 'Not found.');
+}
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith('/api/')) {
-      return handleApi(request, env, url);
+    const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    if (url.protocol === 'http:' && !local) {
+      url.protocol = 'https:';
+      return Response.redirect(url.href, 308);
     }
-    return env.ASSETS.fetch(request);
+    const response = await serve(request, env, url);
+    const secured = new Response(response.body, response);
+    secured.headers.set('Referrer-Policy', 'no-referrer');
+    secured.headers.set('X-Content-Type-Options', 'nosniff');
+    if (url.protocol === 'https:') secured.headers.set('Strict-Transport-Security', 'max-age=15552000');
+    return secured;
   },
 };
-
-function json(data, status = 200, extra = {}) {
-  const headers = {
-    'Content-Type': 'application/json',
-    'Cache-Control': 'no-store',
-    ...extra,
-  };
-  return new Response(JSON.stringify(data), { status, headers });
-}
-
-function setSessionCookie(request, token, maxAge = SESSION_DAYS * 86400) {
-  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : '';
-  const value = maxAge === 0 ? '' : token;
-  return `${COOKIE}=${value}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`;
-}
-
-function readCookie(request, name) {
-  const raw = request.headers.get('Cookie') || '';
-  for (const part of raw.split(';')) {
-    const [k, ...rest] = part.trim().split('=');
-    if (k === name) return decodeURIComponent(rest.join('=') || '');
-  }
-  return '';
-}
-
-function bearerKey(request, env) {
-  const h = request.headers.get('Authorization') || '';
-  return !!(env.SIRONA_KEY && h === 'Bearer ' + env.SIRONA_KEY);
-}
-
-async function sha256Hex(text) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function bytesToHex(bytes) {
-  return [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function hexToBytes(hex) {
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  return out;
-}
-
-async function hashPassword(password, saltHex) {
-  const salt = hexToBytes(saltHex);
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits']
-  );
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: PBKDF2_ITERS },
-    key,
-    256
-  );
-  return bytesToHex(new Uint8Array(bits));
-}
-
-function randomHex(n = 32) {
-  const b = new Uint8Array(n);
-  crypto.getRandomValues(b);
-  return bytesToHex(b);
-}
-
-function validUsername(u) {
-  return typeof u === 'string' && /^[a-zA-Z0-9._-]{2,32}$/.test(u.trim());
-}
-
-function validPassword(p) {
-  return typeof p === 'string' && p.length >= 8 && p.length <= 200;
-}
-
-function timingSafeEqual(a, b) {
-  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
-  let out = 0;
-  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return out === 0;
-}
-
-function validEmail(e) {
-  return typeof e === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim()) && e.length <= 160;
-}
-
-async function ensureSchema(env) {
-  await env.DB.batch([
-    env.DB.prepare(`CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      username TEXT NOT NULL UNIQUE,
-      email TEXT,
-      password_salt TEXT NOT NULL,
-      password_hash TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    )`),
-    env.DB.prepare(`CREATE TABLE IF NOT EXISTS auth_tokens (
-      token_hash TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      expires_at TEXT NOT NULL
-    )`),
-    env.DB.prepare(`CREATE TABLE IF NOT EXISTS password_resets (
-      token_hash TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      expires_at TEXT NOT NULL,
-      used_at TEXT
-    )`),
-  ]);
-}
-
-async function userCount(env) {
-  const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM users').first();
-  return row ? Number(row.n) : 0;
-}
-
-async function userFromCookie(request, env) {
-  const token = readCookie(request, COOKIE);
-  if (!token) return null;
-  const tokenHash = await sha256Hex(token);
-  const now = new Date().toISOString();
-  const row = await env.DB.prepare(
-    `SELECT u.id, u.username, u.email
-     FROM auth_tokens t JOIN users u ON u.id = t.user_id
-     WHERE t.token_hash = ?1 AND t.expires_at > ?2`
-  ).bind(tokenHash, now).first();
-  return row || null;
-}
-
-async function createSession(env, userId) {
-  const token = randomHex(32);
-  const tokenHash = await sha256Hex(token);
-  const now = new Date();
-  const expires = new Date(now.getTime() + SESSION_DAYS * 86400 * 1000);
-  await env.DB.prepare(
-    `INSERT INTO auth_tokens (token_hash, user_id, created_at, expires_at)
-     VALUES (?1, ?2, ?3, ?4)`
-  ).bind(tokenHash, userId, now.toISOString(), expires.toISOString()).run();
-  return token;
-}
-
-async function findUser(env, usernameOrEmail) {
-  const q = (usernameOrEmail || '').trim().toLowerCase();
-  if (!q) return null;
-  return env.DB.prepare(
-    'SELECT * FROM users WHERE lower(username) = ?1 OR lower(email) = ?1'
-  ).bind(q).first();
-}
-
-async function sendResetEmail(env, request, to, rawToken) {
-  if (!env.RESEND_API_KEY || !env.MAIL_FROM) return false;
-  const origin = new URL(request.url).origin;
-  const link = origin + '/?reset=' + rawToken;
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: 'Bearer ' + env.RESEND_API_KEY,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: env.MAIL_FROM,
-      to: [to],
-      subject: 'Reset your Sirona password',
-      text:
-        'Reset your Sirona password with this link (valid one hour):\n\n' +
-        link +
-        '\n\nIf you did not ask for this, ignore the mail.',
-    }),
-  });
-  return res.ok;
-}
-
-async function requireUser(request, env) {
-  if (bearerKey(request, env)) return { id: 'ops', username: 'ops', ops: true };
-  return userFromCookie(request, env);
-}
-
-async function handleApi(request, env, url) {
-  await ensureSchema(env);
-
-  if (url.pathname === '/api/me' && request.method === 'GET') {
-    const user = await userFromCookie(request, env);
-    if (user) return json({ ok: true, username: user.username, email: user.email || '' });
-    const setup = (await userCount(env)) === 0;
-    return json({ error: 'unauthorised', setup }, 401);
-  }
-
-  if (url.pathname === '/api/setup' && request.method === 'POST') {
-    if ((await userCount(env)) > 0) return json({ error: 'already set up' }, 409);
-    let body;
-    try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
-    const username = (body.username || '').trim();
-    const email = (body.email || '').trim().toLowerCase();
-    const password = body.password || '';
-    if (!validUsername(username)) return json({ error: 'username must be 2–32 letters, numbers, . _ -' }, 400);
-    if (!validEmail(email)) return json({ error: 'valid email required' }, 400);
-    if (!validPassword(password)) return json({ error: 'password must be at least 8 characters' }, 400);
-    const id = randomHex(16);
-    const salt = randomHex(16);
-    const password_hash = await hashPassword(password, salt);
-    const now = new Date().toISOString();
-    await env.DB.prepare(
-      `INSERT INTO users (id, username, email, password_salt, password_hash, created_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
-    ).bind(id, username, email, salt, password_hash, now).run();
-    const token = await createSession(env, id);
-    return json({ ok: true, username }, 200, { 'Set-Cookie': setSessionCookie(request, token) });
-  }
-
-  if (url.pathname === '/api/login' && request.method === 'POST') {
-    let body;
-    try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
-    const user = await findUser(env, body.username);
-    const password = body.password || '';
-    if (!user || !validPassword(password)) return json({ error: 'invalid username or password' }, 401);
-    const check = await hashPassword(password, user.password_salt);
-    if (!timingSafeEqual(check, user.password_hash)) return json({ error: 'invalid username or password' }, 401);
-    const token = await createSession(env, user.id);
-    return json({ ok: true, username: user.username }, 200, {
-      'Set-Cookie': setSessionCookie(request, token),
-    });
-  }
-
-  if (url.pathname === '/api/logout' && request.method === 'POST') {
-    const raw = readCookie(request, COOKIE);
-    if (raw) {
-      const tokenHash = await sha256Hex(raw);
-      await env.DB.prepare('DELETE FROM auth_tokens WHERE token_hash = ?1').bind(tokenHash).run();
+async function serve(request, env, url) {
+    if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
+    // Checked before any database access so this build can freeze legacy writes
+    // before the additive migration is applied.
+    if (env.MAINTENANCE_MODE === 'true') return json({ error: 'GymSpear is being updated. Your changes remain on this device. Please retry shortly.' }, 503, { 'Retry-After': '300' });
+    try { return await handle(request, env, url); }
+    catch (e) {
+      if (!e.status) console.error('api_request_failed', { path: url.pathname, method: request.method });
+      return json({ error: e.status ? e.message : 'Could not complete the request. Please try again.' }, e.status || 500,
+        e.status === 429 ? { 'Retry-After': '900' } : {});
     }
-    return json({ ok: true }, 200, { 'Set-Cookie': setSessionCookie(request, '', 0) });
-  }
-
-  if (url.pathname === '/api/forgot-password' && request.method === 'POST') {
-    let body;
-    try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
-    const user = await findUser(env, body.username);
-    let emailed = false;
-    if (user) {
-      const raw = randomHex(32);
-      const tokenHash = await sha256Hex(raw);
-      const now = new Date();
-      const expires = new Date(now.getTime() + RESET_MINUTES * 60 * 1000);
-      await env.DB.prepare('DELETE FROM password_resets WHERE user_id = ?1 AND used_at IS NULL')
-        .bind(user.id).run();
-      await env.DB.prepare(
-        `INSERT INTO password_resets (token_hash, user_id, created_at, expires_at)
-         VALUES (?1, ?2, ?3, ?4)`
-      ).bind(tokenHash, user.id, now.toISOString(), expires.toISOString()).run();
-      if (user.email) emailed = await sendResetEmail(env, request, user.email, raw);
-    }
-    return json({
-      ok: true,
-      emailed,
-      mailConfigured: !!(env.RESEND_API_KEY && env.MAIL_FROM),
-    });
-  }
-
-  if (url.pathname === '/api/reset-check' && request.method === 'GET') {
-    const raw = url.searchParams.get('token') || '';
-    if (!raw) return json({ ok: false }, 400);
-    const tokenHash = await sha256Hex(raw);
-    const now = new Date().toISOString();
-    const row = await env.DB.prepare(
-      `SELECT token_hash FROM password_resets
-       WHERE token_hash = ?1 AND used_at IS NULL AND expires_at > ?2`
-    ).bind(tokenHash, now).first();
-    if (!row) return json({ ok: false }, 400);
-    return json({ ok: true });
-  }
-
-  if (url.pathname === '/api/reset-password' && request.method === 'POST') {
-    let body;
-    try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
-    const raw = body.token || '';
-    const password = body.password || '';
-    if (!raw || !validPassword(password)) return json({ error: 'invalid reset or password' }, 400);
-    const tokenHash = await sha256Hex(raw);
-    const now = new Date().toISOString();
-    const row = await env.DB.prepare(
-      `SELECT user_id FROM password_resets
-       WHERE token_hash = ?1 AND used_at IS NULL AND expires_at > ?2`
-    ).bind(tokenHash, now).first();
-    if (!row) return json({ error: 'reset link expired or already used' }, 400);
-    const salt = randomHex(16);
-    const password_hash = await hashPassword(password, salt);
-    await env.DB.batch([
-      env.DB.prepare('UPDATE users SET password_salt = ?1, password_hash = ?2 WHERE id = ?3')
-        .bind(salt, password_hash, row.user_id),
-      env.DB.prepare('UPDATE password_resets SET used_at = ?1 WHERE token_hash = ?2')
-        .bind(now, tokenHash),
-      env.DB.prepare('DELETE FROM auth_tokens WHERE user_id = ?1').bind(row.user_id),
-    ]);
-    const token = await createSession(env, row.user_id);
-    const user = await env.DB.prepare('SELECT username FROM users WHERE id = ?1').bind(row.user_id).first();
-    return json({ ok: true, username: user ? user.username : '' }, 200, {
-      'Set-Cookie': setSessionCookie(request, token),
-    });
-  }
-
-  const user = await requireUser(request, env);
-  if (!user) return json({ error: 'unauthorised' }, 401);
-
-  if (url.pathname === '/api/sessions' && request.method === 'GET') {
-    const { results } = await env.DB.prepare(
-      'SELECT data FROM sessions ORDER BY date DESC'
-    ).all();
-    return json({ sessions: results.map(r => JSON.parse(r.data)) });
-  }
-
-  if (url.pathname === '/api/sessions' && request.method === 'PUT') {
-    let body;
-    try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
-    if (!Array.isArray(body.sessions)) return json({ error: 'sessions array required' }, 400);
-
-    const now = new Date().toISOString();
-    const stmt = env.DB.prepare(
-      `INSERT INTO sessions (id, date, day, data, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)
-       ON CONFLICT(id) DO UPDATE SET date=?2, day=?3, data=?4, updated_at=?5`
-    );
-    const batch = body.sessions
-      .filter(s => s && s.id && s.date && s.day)
-      .map(s => stmt.bind(s.id, s.date, s.day, JSON.stringify(s), now));
-    if (batch.length) await env.DB.batch(batch);
-
-    // Upsert only. full:true no longer deletes — a stale or empty client
-    // list must not wipe completed history from D1.
-    return json({ ok: true, count: batch.length });
-  }
-
-  if (url.pathname.startsWith('/api/sessions/') && request.method === 'DELETE') {
-    const id = decodeURIComponent(url.pathname.slice('/api/sessions/'.length));
-    if (!id || id.includes('/')) return json({ error: 'bad id' }, 400);
-    await env.DB.prepare('DELETE FROM sessions WHERE id = ?1').bind(id).run();
-    return json({ ok: true });
-  }
-
-  return json({ error: 'not found' }, 404);
 }

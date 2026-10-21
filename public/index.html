@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0d10">
-<title>Sirona — Training Log</title>
+<title>GymSpear — Training Log</title>
+<meta name="description" content="Build a steady training routine with a private workout log, weekly planning and progress tracking.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -48,6 +53,7 @@ header{
 .header-right{display:flex;align-items:center;gap:10px}
 .logout-btn{font-size:12px;color:var(--chalk-dim);letter-spacing:.04em}
 .logout-btn:active{color:var(--danger)}
+#newWorkoutBtn{display:block;min-height:44px;margin:12px auto;padding:8px 16px;color:var(--chalk-dim);border:1px solid var(--steel);border-radius:8px}
 
 .auth-screen{max-width:400px;margin:28px auto 0;padding:0 4px}
 .auth-screen h2{
@@ -317,19 +323,106 @@ body.resting{padding-bottom:calc(132px + env(safe-area-inset-bottom))}
 .rest-bar.go .rest-fill{background:var(--iron);width:0}
 @keyframes rest-pulse{0%,100%{filter:none}40%{filter:brightness(.86)}}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.save-banner{padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--steel);font-size:12px;color:var(--chalk-dim)}
+.save-banner button,.install-help button{color:var(--knurl);min-height:44px}
+.auth-screen{padding:0 20px}
+.auth-links button,.logout-btn{min-height:44px}
+.install-help{max-width:560px;margin:12px auto;padding:0 14px;color:var(--chalk-dim);font-size:12px}
+.install-help summary{cursor:pointer;min-height:44px;align-content:center}
+.install-help p{margin:8px 0}
+dialog{background:var(--plate);color:var(--chalk);border:1px solid var(--steel);border-radius:12px;padding:24px;margin:auto;max-width:min(540px,92vw);max-height:85vh}
+dialog::backdrop{background:#000b}
+dialog section{border-top:1px solid var(--steel);padding:16px 0}
+dialog p{margin:10px 0}
+dialog button{border:1px solid var(--knurl);border-radius:6px;padding:10px;margin:6px 6px 0 0;min-height:44px}
+input,select,textarea{font-size:16px!important}
+@media(max-width:480px){header{flex-wrap:wrap;gap:4px}.today-date{font-size:10px}.header-right{margin-left:auto}.ex-name{overflow-wrap:anywhere}.add-set{flex-wrap:wrap}}
 
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+/* Quieter navigation and expandable lists: colour marks the next action. */
+:root{--chalk-dim:#a0a6ae}
+header,nav{max-width:760px;margin-inline:auto}
+main{max-width:680px;padding:24px 20px 48px}
+nav button{font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:500;letter-spacing:0;text-transform:none;min-height:52px}
+.page-heading{margin:6px 0 24px}
+.page-heading h1{font-size:30px;line-height:1.2;font-weight:600;letter-spacing:-.04em;margin-top:6px}
+.eyebrow{font-size:12px;color:var(--chalk-dim)}
+.field-label{display:block;font-size:12px;color:var(--chalk-dim)}
+.list-select,.history-tools input{display:block;width:100%;min-height:44px;background:var(--plate);border:1px solid var(--steel);border-radius:8px;padding:10px 12px;margin-top:6px;font-size:14px}
+.list-select{appearance:auto;-webkit-appearance:auto}
+.plan-switch{display:flex;gap:8px;margin-top:24px;border-bottom:1px solid var(--steel)}
+.plan-switch button{min-height:48px;padding:10px 12px;color:var(--chalk-dim);border-bottom:2px solid transparent;font-size:14px}
+.plan-switch button[aria-pressed="true"]{color:var(--knurl);border-bottom-color:var(--knurl)}
+#todayPlanList .row-title{font-size:20px}
+.app-update{max-width:680px;margin:12px auto;padding:12px 20px;background:var(--plate);font-size:13px;display:flex;align-items:center;gap:12px}
+.app-update button{min-height:44px;padding:8px 12px;color:var(--iron);background:var(--knurl);border-radius:6px;white-space:nowrap}
+.app-update p{flex:1}
+.build-label{text-align:center;color:var(--chalk-dim);font-size:11px;margin:0 0 16px}
+.history-tools{display:grid;grid-template-columns:minmax(0,1fr) 140px;gap:12px}
+.list-hint{font-size:12px;line-height:1.6;color:var(--chalk-dim);margin:16px 0 12px}
+.list-section{font-size:14px;font-weight:500;margin:28px 0 8px}
+.record-row{background:transparent;border:0;border-bottom:1px solid var(--steel);border-radius:0;padding:0;margin:0}
+.record-row.is-today{border-color:var(--steel)}
+.record-row summary{display:flex;align-items:center;gap:14px;list-style:none;cursor:pointer;min-height:82px;padding:18px 0}
+.record-row summary::-webkit-details-marker{display:none}
+.row-copy{flex:1;min-width:0}
+.row-title{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:16px;font-weight:500}
+.row-date{font-size:12px;color:var(--chalk-dim);font-weight:400;white-space:nowrap}
+.row-caption{display:block;margin-top:5px;font-size:13px;color:var(--chalk-dim)}
+.is-today .row-title,.row-caption.planned{color:var(--knurl)}
+.row-chevron{color:var(--chalk-dim);font-size:20px;transition:transform .15s}
+.record-row[open] .row-chevron{transform:rotate(180deg)}
+.row-detail{padding:0 0 20px;overflow-wrap:anywhere}
+.h-ex,.week-ex{border-top:0;padding:8px 0}
+.h-meta,.week-notes{font-family:inherit;font-size:13px;font-style:normal;line-height:1.6}
+.week-actions{margin-top:16px}
+.week-actions button,.h-del{min-height:44px}
+.h-del{padding:8px 0;color:var(--danger)}
+.empty b{font-family:inherit;font-size:18px;letter-spacing:0;text-transform:none}
+@media(max-width:380px){main{padding-inline:16px}.history-tools{grid-template-columns:minmax(0,1fr)}.row-title{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){.row-chevron{transition:none}}
+/* Assistant: readable conversation with a quiet, fixed-width composer. */
+.ai-intro{color:var(--chalk-dim);line-height:1.6;margin:10px 0 20px;font-size:14px}
+.ai-tools,.ai-starters{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.ai-tools button,.ai-starters button{border:1px solid var(--steel);border-radius:20px;padding:10px 14px;min-height:44px;font-size:13px}
+.ai-starters button{color:var(--knurl)}
+.ai-welcome{font-size:20px;line-height:1.6;margin:30px 0;color:var(--chalk)}
+.ai-message{padding:22px 0;border-bottom:1px solid var(--steel);overflow-wrap:anywhere}
+.ai-message.user{padding:18px;margin:16px 0 0;background:var(--plate);border:0;border-radius:14px}
+.ai-speaker{font-size:12px;color:var(--knurl);margin-bottom:8px}
+.ai-copy{white-space:pre-wrap;line-height:1.7;font-size:15px}
+.ai-plan{margin:20px 0 0;border-left:2px solid var(--knurl);padding-left:16px}
+.ai-plan h2{font:600 19px Inter,system-ui,sans-serif;margin-bottom:14px}
+.ai-workout{margin:12px 0}.ai-workout summary{cursor:pointer;min-height:44px;padding:10px 0;font-weight:500}
+.ai-workout p,.ai-note{font-size:13px;line-height:1.6;color:var(--chalk-dim)}
+.ai-workout ul{list-style:none}.ai-workout li{padding:8px 0}.ai-workout li strong{display:block;font-weight:500;font-size:14px}
+.ai-workout li span{display:block;font-size:13px;color:var(--chalk-dim);line-height:1.6}
+.ai-save,#aiSend{background:var(--knurl);color:var(--iron);padding:12px 20px;border-radius:8px;min-height:44px;font-weight:600;margin-top:12px}
+#aiForm{margin-top:24px;border-top:1px solid var(--steel);padding-top:18px}
+#aiMessage{display:block;resize:vertical;width:100%;min-height:100px;background:var(--plate);border:1px solid var(--steel);border-radius:12px;padding:14px;margin:10px 0;font-size:16px}
+.ai-check{display:flex;gap:10px;align-items:flex-start;margin:14px 0;font-size:13px;line-height:1.6;color:var(--chalk-dim)}
+.ai-check input{accent-color:var(--knurl);margin-top:5px;width:18px;height:18px;flex-shrink:0}
+#aiStatus{font-size:13px;line-height:1.6;color:var(--knurl);margin:14px 0;min-height:20px}
+#view-assistant button:disabled{opacity:.5;cursor:default}
 </style>
 </head>
 <body>
+<div id="appUpdate" class="app-update" hidden role="status"><p id="appUpdateText">An update is ready. Save any plan edits before reloading.</p><button id="applyAppUpdate">Update app</button></div>
 <header>
-  <div class="brand">Sir<em>o</em>na</div>
+  <div class="brand">Gym<em>Spear</em></div>
   <div class="today-date" id="todayDate"></div>
   <div class="header-right">
+    <span id="accountName" class="sr-only"></span>
     <button type="button" class="logout-btn" id="logoutBtn" hidden onclick="logout()">Log out</button>
     <span class="sync-dot" id="syncDot" title="Sync status"></span>
   </div>
 </header>
+<div class="save-banner" aria-live="polite">
+  <span id="saveStatus">Sign in to save your workouts</span>
+  <button id="retrySync" type="button" hidden>Retry saving</button>
+  <button id="reviewConflicts" type="button" hidden>Review changes</button>
+  <button id="installApp" type="button" hidden>Install app</button>
+</div>
 
 <section id="view-auth" hidden>
   <div class="auth-screen">
@@ -337,7 +430,7 @@ body.resting{padding-bottom:calc(132px + env(safe-area-inset-bottom))}
     <p class="auth-lead" id="authLead">Your log lives on the server. Sign in to see it.</p>
     <form id="authForm" onsubmit="submitAuth(event)">
       <label id="authUserWrap">Username
-        <input id="authUser" name="username" autocomplete="username" maxlength="32">
+        <input id="authUser" name="username" autocomplete="username" maxlength="160" autocapitalize="none" spellcheck="false">
       </label>
       <label id="authEmailWrap" hidden>Email
         <input id="authEmail" name="email" type="email" autocomplete="email" maxlength="160">
@@ -353,6 +446,7 @@ body.resting{padding-bottom:calc(132px + env(safe-area-inset-bottom))}
       <p class="auth-note" id="authNote" hidden></p>
     </form>
     <div class="auth-links" id="authLinks">
+      <button type="button" id="authSignupBtn" onclick="showAuth('signup')">Create an account</button>
       <button type="button" id="authForgotBtn" onclick="showAuth('forgot')">Forgot password?</button>
       <button type="button" id="authBackBtn" hidden onclick="showAuth('login')">Back to log in</button>
     </div>
@@ -361,12 +455,31 @@ body.resting{padding-bottom:calc(132px + env(safe-area-inset-bottom))}
 
 <nav role="tablist" id="appNav" hidden>
   <button role="tab" aria-selected="true"  id="tab-today"    onclick="showView('today')">Today</button>
-  <button role="tab" aria-selected="false" id="tab-week"     onclick="showView('week')">Week</button>
-  <button role="tab" aria-selected="false" id="tab-history"  onclick="showView('history')">Ledger</button>
+  <button role="tab" aria-selected="false" id="tab-week"     onclick="showView('week')">Plan</button>
+  <button role="tab" aria-selected="false" id="tab-history"  onclick="showView('history')">History</button>
   <button role="tab" aria-selected="false" id="tab-progress" onclick="showView('progress')">Progress</button>
+  <button role="tab" aria-selected="false" id="tab-assistant" onclick="showView('assistant')">Assistant</button>
 </nav>
 
 <main id="appMain" hidden>
+  <section id="view-assistant" hidden aria-label="GymSpear AI assistant">
+    <div class="page-heading"><p class="eyebrow">A routine that fits you</p><h1>Let’s work it out.</h1></div>
+    <p class="ai-intro">Plan your training, talk through an exercise, or find your way around GymSpear. AI can make mistakes; review advice and plans. It does not provide medical care.</p>
+    <div class="ai-starters">
+      <button type="button" data-ai-prompt="Help me build a sustainable workout routine. Ask me what you need to know first.">Build a routine</button>
+      <button type="button" data-ai-prompt="How do I log a workout and see my progress in GymSpear?">Help with the app</button>
+    </div>
+    <div class="ai-tools"><button type="button" id="aiReload">Reload chat</button><button type="button" id="aiNewChat">Clear conversation</button><button type="button" data-ai-view="week">Open Plan</button></div>
+    <div id="aiMessages" aria-label="Conversation" aria-busy="false"></div>
+    <form id="aiForm">
+      <label for="aiMessage">Message GymSpear AI</label>
+      <textarea id="aiMessage" maxlength="1000" placeholder="I can train three days a week and have dumbbells…" required></textarea>
+      <label class="ai-check"><input type="checkbox" id="aiConsent"><span>I agree to send my messages and recent chat context to Qwen Cloud for a reply. My conversation is saved privately in my GymSpear account. Avoid sharing sensitive medical details.</span></label>
+      <label class="ai-check"><input type="checkbox" id="aiHistory"><span>Include my last three synced workouts (dates, exercises, weights and reps). Session notes, bodyweight and sleep are excluded.</span></label>
+      <button type="submit" id="aiSend" disabled>Send message</button>
+    </form>
+    <p id="aiStatus" role="status" aria-live="polite"></p>
+  </section>
   <section id="view-today">
     <div class="day-row" id="dayRow"></div>
 
@@ -393,34 +506,49 @@ body.resting{padding-bottom:calc(132px + env(safe-area-inset-bottom))}
     <div class="picker">
       <div class="picker-title">Add exercise</div>
       <div class="row">
-        <select id="pGroup" onchange="onGroupChange()"></select>
-        <select id="pEx" onchange="onExChange()"></select>
-        <input type="text" id="pCustom" placeholder="Custom exercise name…" hidden>
+        <select id="pGroup" aria-label="Exercise group" onchange="onGroupChange()"></select>
+        <select id="pEx" aria-label="Exercise" onchange="onExChange()"></select>
+        <input type="text" id="pCustom" aria-label="Custom exercise name" maxlength="200" placeholder="Custom exercise name…" hidden>
         <button class="add-btn" id="pAdd" onclick="addExercise()" disabled>Add to session</button>
       </div>
     </div>
 
     <button class="finish" id="finishBtn" onclick="finishSession()" disabled>Log session</button>
+    <button id="newWorkoutBtn" onclick="startFreshWorkout()">Start a new workout</button>
   </section>
 
   <section id="view-week" hidden>
+    <div class="page-heading"><p class="eyebrow">Make room for movement</p><h1>Your plan</h1></div>
+    <div id="todayPlanList" aria-label="Today’s plan"></div>
     <div id="planEditor" hidden></div>
+    <div class="plan-switch" role="group" aria-label="Other plans">
+      <button id="upcomingPlans" aria-pressed="true" onclick="setPlanRange('upcoming')">Upcoming</button>
+      <button id="earlierPlans" aria-pressed="false" onclick="setPlanRange('earlier')">Earlier plans <span id="earlierCount"></span></button>
+    </div>
+    <p class="list-hint" id="planHint"></p>
     <div id="weekList"></div>
   </section>
 
   <section id="view-progress" hidden>
     <div class="picker" style="margin-top:0;margin-bottom:12px">
       <div class="picker-title">Exercise</div>
-      <select id="progEx" onchange="renderProgress()"></select>
+      <select id="progEx" aria-label="Exercise progress" onchange="renderProgress()"></select>
     </div>
     <div id="progBody"></div>
   </section>
 
   <section id="view-history" hidden>
+    <div class="page-heading"><p class="eyebrow">Every session counts</p><h1>Your history</h1></div>
+    <div class="history-tools">
+      <label class="field-label">Find a session<input id="historySearch" type="search" placeholder="Exercise or notes…" oninput="renderHistory()"></label>
+      <label class="field-label">Workout<select class="list-select" id="historyType" onchange="renderHistory()"><option value="">All workouts</option><option>Push</option><option>Pull</option><option>Legs</option></select></label>
+    </div>
+    <p class="list-hint" id="historyCount" role="status"></p>
     <div id="historyList"></div>
     <div class="io">
       <button onclick="exportData()">Export JSON</button>
       <button onclick="importData()">Import JSON</button>
+      <button id="exportLegacyBtn" onclick="exportLegacyData()" hidden>Export old Sirona device data</button>
     </div>
     <input type="file" id="importFile" accept="application/json" hidden>
   </section>
@@ -444,1225 +572,20 @@ body.resting{padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   <div id="restAnnouncer" class="sr-only" aria-live="polite"></div>
 </div>
 
+<details class="install-help">
+  <summary>Use GymSpear on your phone</summary>
+  <p>On iPhone or iPad, open this page in Safari, choose Share, then Add to Home Screen. On Android, use Install app when it appears, or your browser’s install menu.</p>
+  <p>Use offline access only on your own device. Signing out does not currently remove locally saved workouts. Only “All changes saved” confirms they have reached your account.</p>
+</details>
+<dialog id="conflictDialog" aria-labelledby="conflictTitle">
+  <h2 id="conflictTitle">Review your changes</h2>
+  <div id="conflictBody"></div>
+  <form method="dialog"><button>Close</button></form>
+</dialog>
 <footer>No forced reps. Ever.</footer>
 
-<script>
-/* ============================================================
-   Storage: D1 is the source of truth. localStorage is cache only.
-   Cookie session after username/password login — no passphrase
-   and no sirona-key in localStorage. PUT upserts; never full:true.
-   ============================================================ */
-const store = {
-  KEY: 'sirona-v1',
-  load(){
-    try{
-      const s = JSON.parse(localStorage.getItem(this.KEY)) || {};
-      return {
-        sessions: Array.isArray(s.sessions) ? s.sessions : [],
-        pendingDeletes: Array.isArray(s.pendingDeletes) ? s.pendingDeletes : [],
-      };
-    }catch(e){ return {sessions:[], pendingDeletes:[]} }
-  },
-  save(state){
-    localStorage.setItem(this.KEY, JSON.stringify({
-      sessions: state.sessions,
-      pendingDeletes: state.pendingDeletes || [],
-    }));
-  },
-};
+<p class="build-label">GymSpear · 21 Oct · assistant preview</p>
+<script type="module" src="/app.js?v=10"></script>
 
-function sessionHasSets(s){
-  return !!(s && s.entries && s.entries.some(e => e.sets && e.sets.length));
-}
-function sessionDone(s){ return s && s.status !== 'planned'; }
-function countSets(s){
-  return (s.entries || []).reduce((n, e) => n + ((e.sets && e.sets.length) || 0), 0);
-}
-function preferSession(remote, local){
-  if(!remote) return local;
-  if(!local) return remote;
-  const remoteComplete = sessionDone(remote) && sessionHasSets(remote);
-  const localComplete = sessionDone(local) && sessionHasSets(local);
-  const localEmptyOrPlanned = local.status === 'planned' || !sessionHasSets(local);
-  if(remoteComplete && localEmptyOrPlanned) return remote;
-  if(localComplete && !(sessionDone(remote) && sessionHasSets(remote))) return local;
-  if(remoteComplete && localComplete){
-    return countSets(local) > countSets(remote) ? local : remote;
-  }
-  const lEx = (local.entries || []).length;
-  const rEx = (remote.entries || []).length;
-  if(lEx !== rEx) return lEx > rEx ? local : remote;
-  return remote;
-}
-
-const sync = {
-  canSync(){ return location.protocol === 'https:' || location.hostname === 'localhost'; },
-  loggedIn: false,
-  dot(cls){ const d = document.getElementById('syncDot'); if(d) d.className = 'sync-dot ' + cls; },
-  async api(path, method, body){
-    const r = await fetch(path, {
-      method,
-      credentials: 'same-origin',
-      headers: body ? { 'Content-Type': 'application/json' } : {},
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    let data = {};
-    try{ data = await r.json(); }catch(e){}
-    if(r.status === 401 && path.startsWith('/api/sessions')){
-      this.loggedIn = false;
-      showAuth('login');
-      throw new Error('unauthorised');
-    }
-    if(!r.ok) throw Object.assign(new Error(data.error || ('http ' + r.status)), { status: r.status, data });
-    return data;
-  },
-  merge(local, remote, pendingDeletes){
-    const gone = new Set(pendingDeletes || []);
-    const byId = {};
-    (remote || []).forEach(s => { if(s && s.id && !gone.has(s.id)) byId[s.id] = s; });
-    (local || []).forEach(s => {
-      if(!s || !s.id || gone.has(s.id)) return;
-      byId[s.id] = preferSession(byId[s.id], s);
-    });
-    return Object.values(byId).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
-  },
-  async pull(){
-    if(!this.canSync()){ this.dot('local'); return; }
-    if(!this.loggedIn) return;
-    try{
-      const remote = await this.api('/api/sessions', 'GET');
-      state.sessions = this.merge(state.sessions, remote.sessions || [], state.pendingDeletes);
-      store.save(state);
-      hydrateTodayPlan();
-      renderExercises(); renderHistory(); renderWeek(); renderProgress();
-      await this.push();
-      this.dot('ok');
-    }catch(e){ this.dot('err'); }
-  },
-  async push(){
-    if(!this.canSync()){ this.dot('local'); return; }
-    if(!this.loggedIn) return;
-    try{
-      await this.api('/api/sessions', 'PUT', { sessions: state.sessions });
-      const still = [];
-      for(const id of (state.pendingDeletes || [])){
-        try{ await this.api('/api/sessions/' + encodeURIComponent(id), 'DELETE'); }
-        catch(e){ still.push(id); }
-      }
-      state.pendingDeletes = still;
-      store.save(state);
-      this.dot('ok');
-    }catch(e){ this.dot('err'); }
-  },
-  remove(id){
-    state.sessions = state.sessions.filter(s => s.id !== id);
-    if(!state.pendingDeletes) state.pendingDeletes = [];
-    if(!state.pendingDeletes.includes(id)) state.pendingDeletes.push(id);
-    store.save(state);
-    this.push();
-  },
-};
-
-let authMode = 'login';
-let resetToken = '';
-
-function setShell(on, hasSession){
-  document.getElementById('view-auth').hidden = on;
-  document.getElementById('appNav').hidden = !on;
-  document.getElementById('appMain').hidden = !on;
-  document.getElementById('logoutBtn').hidden = !on || !hasSession;
-  if(!on){
-    const bar = document.getElementById('restBar');
-    if(bar) bar.hidden = true;
-    document.body.classList.remove('resting');
-  }
-}
-
-function authErr(msg){
-  const el = document.getElementById('authErr');
-  el.hidden = !msg;
-  el.textContent = msg || '';
-}
-
-function showAuth(mode){
-  authMode = mode;
-  sync.loggedIn = false;
-  setShell(false, false);
-  const title = document.getElementById('authTitle');
-  const lead = document.getElementById('authLead');
-  const emailWrap = document.getElementById('authEmailWrap');
-  const userWrap = document.getElementById('authUserWrap');
-  const passWrap = document.getElementById('authPassWrap');
-  const pass2Wrap = document.getElementById('authPass2Wrap');
-  const go = document.getElementById('authGo');
-  const forgot = document.getElementById('authForgotBtn');
-  const back = document.getElementById('authBackBtn');
-  const note = document.getElementById('authNote');
-  const pass = document.getElementById('authPass');
-  const pass2 = document.getElementById('authPass2');
-  note.hidden = true;
-  authErr('');
-  emailWrap.hidden = mode !== 'setup';
-  userWrap.hidden = mode === 'reset';
-  passWrap.hidden = mode === 'forgot';
-  pass2Wrap.hidden = mode !== 'setup' && mode !== 'reset';
-  forgot.hidden = mode !== 'login';
-  back.hidden = mode === 'login' || mode === 'setup';
-  if(mode === 'login'){
-    title.textContent = 'Log in';
-    lead.textContent = 'Your log lives on the server. Sign in to see it.';
-    go.textContent = 'Log in';
-    pass.autocomplete = 'current-password';
-  } else if(mode === 'setup'){
-    title.textContent = 'Create account';
-    lead.textContent = 'First sign-in. Username, email, and a password — one user is enough.';
-    go.textContent = 'Create account';
-    pass.autocomplete = 'new-password';
-  } else if(mode === 'forgot'){
-    title.textContent = 'Forgot password';
-    lead.textContent = 'Enter your username or email. If an account exists, a reset link is created.';
-    go.textContent = 'Send reset link';
-  } else if(mode === 'reset'){
-    title.textContent = 'Set new password';
-    lead.textContent = 'Choose a new password (at least 8 characters).';
-    go.textContent = 'Save password';
-    pass.autocomplete = 'new-password';
-    pass2.autocomplete = 'new-password';
-  }
-}
-
-function showApp(hasSession){
-  sync.loggedIn = !!hasSession;
-  setShell(true, !!hasSession);
-  document.getElementById('view-auth').hidden = true;
-  updateRestBar();
-}
-
-async function submitAuth(ev){
-  ev.preventDefault();
-  authErr('');
-  const username = document.getElementById('authUser').value.trim();
-  const email = document.getElementById('authEmail').value.trim();
-  const password = document.getElementById('authPass').value;
-  const password2 = document.getElementById('authPass2').value;
-  const note = document.getElementById('authNote');
-  try{
-    if(authMode === 'login'){
-      if(!username || !password){ authErr('Username and password required.'); return; }
-      await sync.api('/api/login', 'POST', { username, password });
-      showApp(true);
-      await sync.pull();
-      return;
-    }
-    if(authMode === 'setup'){
-      if(password !== password2){ authErr('Passwords do not match.'); return; }
-      await sync.api('/api/setup', 'POST', { username, email, password });
-      showApp(true);
-      await sync.pull();
-      return;
-    }
-    if(authMode === 'forgot'){
-      if(!username){ authErr('Username or email required.'); return; }
-      const data = await sync.api('/api/forgot-password', 'POST', { username });
-      note.hidden = false;
-      note.textContent = data.emailed
-        ? 'If that account exists, a reset link is on its way. It expires in one hour.'
-        : (data.mailConfigured
-          ? 'If that account exists, a reset link is on its way. It expires in one hour.'
-          : 'Reset token is stored. Mail is not configured on the Worker yet (needs RESEND_API_KEY and MAIL_FROM). Login still works.');
-      return;
-    }
-    if(authMode === 'reset'){
-      if(password !== password2){ authErr('Passwords do not match.'); return; }
-      if(!resetToken){ authErr('Missing reset token.'); return; }
-      await sync.api('/api/reset-password', 'POST', { token: resetToken, password });
-      resetToken = '';
-      history.replaceState({}, '', location.pathname);
-      showApp(true);
-      await sync.pull();
-    }
-  }catch(e){
-    authErr(e.message || 'Could not complete that.');
-  }
-}
-
-async function logout(){
-  try{ await sync.api('/api/logout', 'POST'); }catch(e){}
-  sync.loggedIn = false;
-  showAuth('login');
-}
-
-async function bootAuth(){
-  const params = new URLSearchParams(location.search);
-  const token = params.get('reset') || '';
-  if(token){
-    resetToken = token;
-    showAuth('reset');
-    try{
-      await sync.api('/api/reset-check?token=' + encodeURIComponent(token), 'GET');
-    }catch(e){
-      authErr('This reset link is expired or already used.');
-    }
-    return;
-  }
-  if(!sync.canSync()){
-    showApp(false);
-    sync.dot('local');
-    return;
-  }
-  try{
-    const r = await fetch('/api/me', { credentials: 'same-origin' });
-    const data = await r.json().catch(() => ({}));
-    if(r.ok){
-      showApp(true);
-      await sync.pull();
-      return;
-    }
-    if(r.status === 401){
-      showAuth(data.setup ? 'setup' : 'login');
-      return;
-    }
-    showApp(false);
-    sync.dot('local');
-  }catch(e){
-    showApp(false);
-    sync.dot('local');
-  }
-}
-
-/* ============================================================
-   Exercise menus — from the paper log (source of truth).
-   ============================================================ */
-const MENU = {
-  Push: {
-    'Chest Compounds': ['Incline Barbell Bench Press','Incline Dumbbell Press','Flat Barbell Bench Press','Flat Dumbbell Press','Machine Chest Press','Decline Press','Cable Chest Press','Push-ups (weighted / elevated)','Push-ups'],
-    'Chest Isolation': ['Dumbbell Flyes (flat)','Dumbbell Flyes (incline)','Cable Flyes (high-to-low)','Cable Flyes (mid)','Cable Flyes (low-to-high)','Pec Deck / Machine Fly','Single-arm Cable Crossover'],
-    'Shoulder Compounds': ['Seated Dumbbell Shoulder Press','Standing Dumbbell Shoulder Press','Machine Shoulder Press','Barbell Overhead Press','Arnold Press'],
-    'Side & Rear Delts': ['Dumbbell Lateral Raises','Cable Lateral Raises (low pulley)','High-Cable Lateral Raises','Machine Lateral Raise','Face Pulls','Rear Delt Flyes (dumbbell)','Rear Delt Flyes (cable)'],
-    'Triceps': ['Cable Tricep Pushdown (bar)','Cable Tricep Pushdown (V-bar)','Cable Tricep Pushdown (rope)','Overhead Cable Extension','Dumbbell Overhead Extension','Skull Crushers','Close-Grip Bench Press','Dips','Bench Dips','Single-arm Cable Kickback'],
-    'Arms (optional)': ['Dumbbell Curls','Hammer Curls'],
-  },
-  Pull: {
-    'Vertical Pulls': ['Lat Pulldown (wide)','Lat Pulldown (close)','Lat Pulldown (neutral)','Pull-ups / Chin-ups (assisted or full)','Single-arm Lat Pulldown','Straight-arm Cable Pulldown','Dumbbell Pullovers'],
-    'Horizontal Rows': ['Seated Cable Row','Chest-Supported Row','Bent-Over Barbell Row','Single-arm Dumbbell Row','T-Bar Row','Machine Row','Ring Rows'],
-    'Upper Back & Rear Delts': ['Face Pulls','High-Cable Reverse Fly','Dumbbell Rear Delt Fly','Cable Rear Delt Fly','Shrugs'],
-    'Biceps': ['EZ-Bar Curls','Straight-Bar Curls','Dumbbell Curls','Incline Dumbbell Curls','Hammer Curls','Cable Curls','Concentration Curls','Preacher Curls','Spider Curls'],
-    'Forearms': ['Wrist Curls (palm up)','Wrist Curls (palm down)'],
-  },
-  Legs: {
-    'Quad Dominant': ['Barbell Back Squat','Goblet Squat','Leg Press','Hack Squat','Front Squat','Bulgarian Split Squat','Walking Lunges','Reverse Lunges','Step-ups','Leg Extension'],
-    'Hamstring & Glute Dominant': ['Romanian Deadlift (barbell)','Romanian Deadlift (dumbbell)','Conventional Deadlift','Sumo Deadlift','Stiff-Leg Deadlift','Leg Curl (lying)','Leg Curl (seated)','Hip Thrust','Glute Bridge','Cable Pull-Through','Single-leg RDL'],
-    'Calves': ['Standing Calf Raise','Seated Calf Raise','Leg-Press Calf Raise','Single-leg Calf Raise'],
-  },
-};
-const CORE = ['Hanging Knee Raises','Hanging Leg Raises','Cable Woodchoppers','Plank variations','Ab Wheel','Pallof Press','Farmer Carries','Pillow Pass'];
-const CUSTOM = 'Custom…';
-
-/* ---------- state ---------- */
-const DAYS = ['Push','Pull','Legs'];
-let state = store.load();
-if(state.sessions) state.sessions.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
-let draft = { day: guessDay(), entries: [] };
-let openEx = new Set(); // expanded exercise indices on Today
-let planEdit = null; // { dateKey, id?, day, entries, notes }
-
-function isPlanned(s){ return s.status === 'planned'; }
-function isDone(s){ return !isPlanned(s); } // missing status = done (pre-planner logs)
-function dateKey(isoOrDate){
-  const d = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,'0');
-  const day = String(d.getDate()).padStart(2,'0');
-  return y + '-' + m + '-' + day;
-}
-function parseKey(key){
-  const [y,m,d] = key.split('-').map(Number);
-  return new Date(y, m-1, d);
-}
-function atNoon(key){
-  const d = parseKey(key);
-  d.setHours(12,0,0,0);
-  return d.toISOString();
-}
-function todayKey(){ return dateKey(new Date()); }
-function planFor(key){ return state.sessions.find(s => isPlanned(s) && dateKey(s.date) === key); }
-function doneOn(key){ return state.sessions.filter(s => isDone(s) && dateKey(s.date) === key); }
-
-function guessDay(){
-  const last = state.sessions.find(isDone);
-  if(!last) return 'Push';
-  const i = DAYS.indexOf(last.day);
-  return DAYS[(i+1) % DAYS.length] || 'Push';
-}
-
-/* ---------- helpers ---------- */
-function lastPerformance(name){
-  for(const s of state.sessions){
-    if(!isDone(s) || !s.entries) continue;
-    const e = s.entries.find(e => e.exercise.toLowerCase() === name.toLowerCase());
-    if(e && e.sets.length){
-      const best = e.sets.reduce((a,b)=> (b.w > a.w ? b : a));
-      return {date:s.date, best, sets:e.sets.length};
-    }
-  }
-  return null;
-}
-function fmtDate(iso){
-  return new Date(iso).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
-}
-function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
-
-/* ---------- plate math (20kg bar, per-side) ---------- */
-const PLATES = [25,20,15,10,5,2.5,1.25];
-function plateBreakdown(total){
-  const perSide = (total - 20) / 2;
-  if(perSide < 0) return null;
-  let rem = perSide, out = [];
-  for(const p of PLATES){ while(rem >= p - 1e-9){ out.push(p); rem -= p; } }
-  return { plates: out, exact: rem < 1e-9 };
-}
-function renderPlates(el, val){
-  const w = parseFloat(val);
-  if(!w || w < 20){ el.classList.remove('show'); return; }
-  const b = plateBreakdown(w);
-  el.classList.add('show');
-  if(!b){ el.textContent = 'Below bar weight (20 kg)'; return; }
-  const cls = p => 'pl pl-' + String(p).replace('.','_');
-  el.innerHTML =
-    '<div class="sum">' + (b.exact ? '' : '≈ ') + '<b>' + w + ' kg</b> = bar + ' +
-      (b.plates.length ? b.plates.join(' + ') + ' per side' : 'empty') +
-      (b.exact ? '' : ' (nearest loadable)') + '</div>' +
-    '<div class="bar-line"><span class="sleeve"></span>' +
-      b.plates.map(p => '<span class="' + cls(p) + '"></span>').join('') +
-    '</div>';
-}
-
-/* ---------- day + picker ---------- */
-function renderDayRow(){
-  document.getElementById('dayRow').innerHTML = DAYS.map(d =>
-    '<button class="' + (draft.day===d?'on':'') + '" onclick="setDay(\'' + d + '\')">' + d + '</button>'
-  ).join('');
-}
-function setDay(d){ draft.day = d; renderDayRow(); renderPicker(); }
-
-function groupsForDay(day){
-  return Object.keys(MENU[day || draft.day]).concat(['Core (optional)']);
-}
-function exercisesForGroup(g, day){
-  if(g === 'Core (optional)') return CORE.slice();
-  return (MENU[day || draft.day][g] || []).slice();
-}
-function renderPicker(){
-  const gSel = document.getElementById('pGroup');
-  gSel.innerHTML = '<option value="" disabled selected>Muscle group…</option>' +
-    groupsForDay().map(g => '<option>' + esc(g) + '</option>').join('');
-  const eSel = document.getElementById('pEx');
-  eSel.innerHTML = '<option value="" disabled selected>Exercise…</option>';
-  document.getElementById('pCustom').hidden = true;
-  document.getElementById('pCustom').value = '';
-  updateAddBtn();
-}
-function onGroupChange(){
-  const g = document.getElementById('pGroup').value;
-  const eSel = document.getElementById('pEx');
-  eSel.innerHTML = '<option value="" disabled selected>Exercise…</option>' +
-    exercisesForGroup(g).map(x => '<option>' + esc(x) + '</option>').join('') +
-    '<option>' + CUSTOM + '</option>';
-  document.getElementById('pCustom').hidden = true;
-  updateAddBtn();
-}
-function onExChange(){
-  const isCustom = document.getElementById('pEx').value === CUSTOM;
-  const c = document.getElementById('pCustom');
-  c.hidden = !isCustom;
-  if(isCustom) c.focus();
-  updateAddBtn();
-}
-function updateAddBtn(){
-  const g = document.getElementById('pGroup').value;
-  const x = document.getElementById('pEx').value;
-  const c = document.getElementById('pCustom').value.trim();
-  document.getElementById('pAdd').disabled = !g || !x || (x === CUSTOM && !c);
-}
-document.addEventListener('input', e => { if(e.target.id === 'pCustom') updateAddBtn(); });
-
-function addExercise(){
-  const g = document.getElementById('pGroup').value;
-  let x = document.getElementById('pEx').value;
-  if(x === CUSTOM) x = document.getElementById('pCustom').value.trim();
-  if(!g || !x) return;
-  draft.entries.push({exercise:x, group:g, sets:[], note:''});
-  openEx.add(draft.entries.length - 1);
-  if(rest && !rest.done && rest.fromEi === draft.entries.length - 2) promoteRestSwitch();
-  renderExercises();
-  renderPicker();
-}
-
-/* ---------- rest timer (session UI) ---------- */
-const REST_MIN = 30;
-const REST_MAX = 120;
-const REST_SAME = 60;
-const REST_SWITCH = 90;
-let restKindPref = 'same';
-let restSecs = { same: REST_SAME, switch: REST_SWITCH };
-let rest = null; // { start, endsAt, duration, kind, fromEi, tick, done, hideAt }
-
-function clampRest(n){
-  n = parseInt(n, 10);
-  if(!Number.isFinite(n)) n = REST_SAME;
-  return Math.max(REST_MIN, Math.min(REST_MAX, n));
-}
-function restKindAfterSet(ei){
-  const e = draft.entries[ei];
-  if(!e) return 'same';
-  const later = draft.entries.slice(ei + 1);
-  if(!later.length) return 'same';
-  const last = lastPerformance(e.exercise);
-  if(last && e.sets.length === last.sets) return 'switch';
-  return 'same';
-}
-function restNextName(fromEi){
-  const n = draft.entries[fromEi + 1];
-  return n ? n.exercise : '';
-}
-function restCurrentEi(){
-  const open = [...openEx].filter(i => i >= 0).sort((a,b)=> a-b);
-  if(open.length) return open[0];
-  return draft.entries.length ? 0 : -1;
-}
-function fmtRest(secs){
-  const s = Math.max(0, Math.ceil(secs));
-  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2,'0');
-}
-function restRemaining(){
-  if(!rest) return restSecs[restKindPref];
-  return Math.max(0, (rest.endsAt - Date.now()) / 1000);
-}
-function sessionLoggerOpen(){
-  const auth = document.getElementById('view-auth');
-  if(auth && !auth.hidden) return false;
-  const today = document.getElementById('view-today');
-  const main = document.getElementById('appMain');
-  return !!(today && !today.hidden && main && !main.hidden);
-}
-function announceRest(msg){
-  const el = document.getElementById('restAnnouncer');
-  if(!el) return;
-  el.textContent = '';
-  requestAnimationFrame(() => { el.textContent = msg; });
-}
-function paintRestSlider(kind, secs){
-  const slider = document.getElementById('restSlider');
-  const label = document.getElementById('restSecs');
-  if(slider) slider.value = String(secs);
-  if(label) label.textContent = secs + 's';
-  if(slider) slider.disabled = !!(rest && rest.done);
-}
-function startRest(ei, kind){
-  if(rest && rest.tick) clearInterval(rest.tick);
-  restKindPref = kind === 'switch' ? 'switch' : 'same';
-  const duration = restSecs[restKindPref];
-  const start = Date.now();
-  rest = {
-    start, duration, kind: restKindPref, fromEi: ei, done: false,
-    endsAt: start + duration * 1000,
-    tick: setInterval(updateRestBar, 200)
-  };
-  updateRestBar();
-  announceRest(restKindPref === 'switch'
-    ? 'Rest ' + duration + ' seconds, next exercise'
-    : 'Rest ' + duration + ' seconds, between sets');
-}
-function applyKindDuration(kind){
-  restKindPref = kind;
-  if(!rest || rest.done){ updateRestBar(); return; }
-  rest.kind = kind;
-  rest.duration = restSecs[kind];
-  rest.endsAt = rest.start + rest.duration * 1000;
-  updateRestBar();
-}
-function promoteRestSwitch(){
-  if(!rest || rest.done || rest.kind === 'switch') return;
-  applyKindDuration('switch');
-}
-function toggleRestKind(){
-  if(rest && rest.done) return;
-  applyKindDuration(restKindPref === 'same' ? 'switch' : 'same');
-}
-function setRestSeconds(val){
-  const secs = clampRest(val);
-  restSecs[restKindPref] = secs;
-  if(rest && !rest.done){
-    rest.duration = secs;
-    rest.endsAt = rest.start + secs * 1000;
-  }
-  updateRestBar();
-}
-function skipRest(){
-  if(!rest){
-    startRest(restCurrentEi(), restKindPref);
-    return;
-  }
-  clearRest();
-}
-function clearRest(){
-  if(rest && rest.tick) clearInterval(rest.tick);
-  rest = null;
-  updateRestBar();
-}
-function restEnds(){
-  if(!rest || rest.done) return;
-  rest.done = true;
-  rest.hideAt = Date.now() + 5000;
-  try{ navigator.vibrate && navigator.vibrate([40, 50, 80]); }catch(e){}
-  announceRest('Rest done');
-}
-function updateRestBar(){
-  const bar = document.getElementById('restBar');
-  if(!bar) return;
-  if(!sessionLoggerOpen()){
-    bar.hidden = true;
-    document.body.classList.remove('resting');
-    return;
-  }
-  if(rest && !rest.done && restRemaining() <= 0) restEnds();
-  if(rest && rest.done && rest.hideAt && Date.now() >= rest.hideAt){
-    if(rest.tick) clearInterval(rest.tick);
-    rest = null;
-  }
-  const kind = rest ? rest.kind : restKindPref;
-  const chosen = rest && !rest.done ? rest.duration : restSecs[kind];
-  document.body.classList.add('resting');
-  bar.hidden = false;
-  bar.classList.toggle('go', !!(rest && rest.done));
-  document.getElementById('restLabel').textContent = (rest && rest.done) ? 'Go' : 'Rest';
-  document.getElementById('restTime').textContent = (rest && rest.done)
-    ? '0:00'
-    : fmtRest(rest ? restRemaining() : chosen);
-  const kindBtn = document.getElementById('restKind');
-  const next = restNextName(rest ? rest.fromEi : restCurrentEi());
-  kindBtn.textContent = (rest && rest.done)
-    ? 'Ready'
-    : (kind === 'switch'
-      ? (next ? 'Next · ' + next : 'Next exercise')
-      : 'Between sets');
-  kindBtn.disabled = !!(rest && rest.done);
-  document.getElementById('restSkip').textContent = !rest ? 'Start' : (rest.done ? 'OK' : 'Skip');
-  paintRestSlider(kind, chosen);
-  const fill = document.getElementById('restFill');
-  if(!rest) fill.style.width = '100%';
-  else if(rest.done) fill.style.width = '0';
-  else {
-    const pct = Math.max(0, Math.min(1, restRemaining() / rest.duration));
-    fill.style.width = (pct * 100) + '%';
-  }
-}
-document.addEventListener('visibilitychange', () => { updateRestBar(); });
-
-/* ---------- exercises ---------- */
-let hydrating = false;
-let hydrateGen = 0;
-function renderExercises(){
-  const wrap = document.getElementById('exercises');
-  wrap.innerHTML = '';
-  hydrating = true;
-  const gen = ++hydrateGen;
-  draft.entries.forEach((e, ei) => {
-    const last = lastPerformance(e.exercise);
-    const card = document.createElement('details');
-    card.className = 'exercise';
-    if(openEx.has(ei)) card.open = true;
-    card.innerHTML =
-      '<summary>' +
-        '<span class="ex-name">' + esc(e.exercise) + '</span>' +
-        '<span class="chev" aria-hidden="true"></span>' +
-        '<button type="button" class="set-del" onclick="event.preventDefault();event.stopPropagation();removeExercise(' + ei + ')" aria-label="Remove exercise">×</button>' +
-      '</summary>' +
-      '<div class="ex-group">' + esc(e.group) + '</div>' +
-      (last
-        ? '<div class="ex-last">last: <b>' + last.best.w + ' kg × ' + last.best.r + '</b> · ' + last.sets + ' sets · ' + fmtDate(last.date) + '</div>'
-        : '<div class="ex-last">first time — set the marker</div>') +
-      '<div class="sets">' +
-        e.sets.map((s, si) =>
-          '<div class="set-row"><span class="set-n">' + (si+1) + '</span>' +
-          '<span class="set-val"><b>' + s.w + '</b> kg × <b>' + s.r + '</b></span>' +
-          (s.rpe ? '<span class="set-rpe">RPE ' + s.rpe + '</span>' : '') +
-          (last && e1rm(s.w, s.r) > e1rm(last.best.w, last.best.r) ? '<span class="set-beat">▲ beat</span>' : '') +
-          '<button class="set-del" onclick="removeSet(' + ei + ',' + si + ')" aria-label="Remove set">×</button></div>'
-        ).join('') +
-      '</div>' +
-      '<div class="plates" id="pl-' + ei + '"></div>' +
-      '<div class="add-set">' +
-        '<input type="number" inputmode="decimal" step="0.5" min="0" placeholder="kg" id="w-' + ei + '" oninput="renderPlates(document.getElementById(\'pl-' + ei + '\'), this.value)">' +
-        '<span class="x-label">×</span>' +
-        '<input type="number" inputmode="numeric" min="1" placeholder="reps" id="r-' + ei + '">' +
-        '<input type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="RPE" class="rpe" id="p-' + ei + '">' +
-        '<button class="go" onclick="addSet(' + ei + ')">Add</button>' +
-      '</div>' +
-      '<div class="ex-note"><input type="text" placeholder="Notes (optional)" value="' + esc(e.note) + '" onchange="draft.entries[' + ei + '].note=this.value"></div>';
-    card.addEventListener('toggle', () => {
-      if(hydrating) return;
-      if(card.open){
-        const wasOpen = openEx.has(ei);
-        openEx.add(ei);
-        if(!wasOpen && rest && !rest.done && ei > rest.fromEi) promoteRestSwitch();
-      } else openEx.delete(ei);
-    });
-    wrap.appendChild(card);
-  });
-  document.getElementById('finishBtn').disabled = !draft.entries.some(e => e.sets.length);
-  setTimeout(() => { if(gen === hydrateGen) hydrating = false; }, 0);
-}
-function removeExercise(i){
-  draft.entries.splice(i,1);
-  const next = new Set();
-  openEx.forEach(j => {
-    if(j < i) next.add(j);
-    else if(j > i) next.add(j - 1);
-  });
-  openEx = next;
-  if(rest){
-    if(rest.fromEi === i) clearRest();
-    else if(rest.fromEi > i) rest.fromEi--;
-  }
-  renderExercises();
-}
-function addSet(i){
-  const w = parseFloat(document.getElementById('w-'+i).value);
-  const r = parseInt(document.getElementById('r-'+i).value,10);
-  const rpeRaw = document.getElementById('p-'+i).value;
-  const rpe = rpeRaw ? parseFloat(rpeRaw) : null;
-  if(!(w >= 0) || !(r > 0)) return;
-  const set = {w, r}; if(rpe) set.rpe = rpe;
-  draft.entries[i].sets.push(set);
-  openEx.add(i);
-  renderExercises();
-  const wi = document.getElementById('w-'+i);
-  wi.value = w; document.getElementById('r-'+i).value = '';
-  renderPlates(document.getElementById('pl-'+i), w);
-  startRest(i, restKindAfterSet(i));
-}
-function removeSet(i,si){
-  const last = draft.entries[i].sets.length - 1;
-  draft.entries[i].sets.splice(si,1);
-  if(rest && rest.fromEi === i && si === last) clearRest();
-  renderExercises();
-}
-
-/* ---------- finish ---------- */
-function readMeta(){
-  const v = id => document.getElementById(id).value;
-  const meta = {};
-  if(v('mBw')) meta.bodyweight = parseFloat(v('mBw'));
-  if(v('mSleep')) meta.sleep = parseInt(v('mSleep'),10);
-  if(v('mCommute')) meta.commute = v('mCommute');
-  if(v('mCommuteTime')) meta.commuteTime = parseInt(v('mCommuteTime'),10);
-  if(v('mFeel').trim()) meta.feel = v('mFeel').trim();
-  return meta;
-}
-function clearMeta(){
-  ['mBw','mSleep','mCommute','mCommuteTime','mFeel'].forEach(id => document.getElementById(id).value='');
-}
-function finishSession(){
-  const entries = draft.entries.filter(e => e.sets.length);
-  if(!entries.length) return;
-  const meta = readMeta();
-  const planned = draft.planId && state.sessions.find(s => s.id === draft.planId && isPlanned(s));
-  if(planned){
-    planned.status = 'done';
-    planned.date = new Date().toISOString();
-    planned.day = draft.day;
-    planned.meta = meta;
-    planned.entries = entries;
-  } else {
-    state.sessions.unshift({
-      id: Date.now().toString(36),
-      date: new Date().toISOString(),
-      day: draft.day,
-      status: 'done',
-      meta,
-      entries
-    });
-  }
-  state.sessions.sort((a,b)=> b.date.localeCompare(a.date));
-  store.save(state);
-  sync.push();
-  clearRest();
-  draft = { day: guessDay(), entries: [] };
-  openEx = new Set();
-  clearMeta();
-  hydrateTodayPlan();
-  renderDayRow(); renderExercises(); renderPicker(); renderHistory(); renderWeek();
-  showView('history');
-}
-
-/* ---------- ledger ---------- */
-function metaLine(m){
-  if(!m) return '';
-  const bits = [];
-  if(m.bodyweight) bits.push(m.bodyweight + ' kg bw');
-  if(m.sleep) bits.push('sleep ' + m.sleep + '/10');
-  if(m.commute) bits.push(m.commute.toLowerCase() + (m.commuteTime ? ' ' + m.commuteTime + 'min' : ''));
-  if(m.feel) bits.push('“' + esc(m.feel) + '”');
-  return bits.length ? '<div class="h-meta">' + bits.join(' · ') + '</div>' : '';
-}
-function renderHistory(){
-  const wrap = document.getElementById('historyList');
-  const done = state.sessions.filter(isDone);
-  if(!done.length){
-    wrap.innerHTML = '<div class="empty"><b>Empty ledger</b>Log your first session and it lands here.</div>';
-    return;
-  }
-  wrap.innerHTML = done.map(s =>
-    '<div class="h-session">' +
-      '<div class="h-top"><span class="h-day">' + s.day + '</span><span class="h-date">' + fmtDate(s.date) + '</span></div>' +
-      (s.notes ? '<div class="h-meta">' + esc(s.notes) + '</div>' : '') +
-      metaLine(s.meta) +
-      s.entries.map(e =>
-        '<div class="h-ex"><div class="n">' + esc(e.exercise) + '</div>' +
-        '<div class="s">' + e.sets.map(x => x.w + '×' + x.r + (x.rpe ? '@' + x.rpe : '')).join('  ') + '</div>' +
-        (e.note ? '<div class="note">' + esc(e.note) + '</div>' : '') +
-        '</div>'
-      ).join('') +
-      '<button class="h-del" onclick="deleteSession(\'' + s.id + '\')">delete entry</button>' +
-    '</div>'
-  ).join('');
-}
-function deleteSession(id){
-  if(!confirm('Delete this session from the ledger?')) return;
-  if(draft.planId === id) draft.planId = undefined;
-  sync.remove(id);
-  hydrateTodayPlan();
-  renderHistory(); renderExercises(); renderWeek();
-}
-
-/* ---------- import / export ---------- */
-function exportData(){
-  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'sirona-export.json';
-  a.click(); URL.revokeObjectURL(a.href);
-}
-function importData(){
-  const f = document.getElementById('importFile');
-  f.onchange = () => {
-    const file = f.files[0]; if(!file) return;
-    file.text().then(t => {
-      try{
-        const data = JSON.parse(t);
-        if(!Array.isArray(data.sessions)) throw 0;
-        state.sessions = data.sessions;
-        store.save(state); sync.push();
-        hydrateTodayPlan();
-        renderHistory(); renderExercises(); renderWeek();
-        alert('Imported ' + state.sessions.length + ' sessions.');
-      }catch(e){ alert('That file is not a Sirona export.'); }
-    });
-  };
-  f.click();
-}
-
-/* ---------- progress ---------- */
-function e1rm(w, r){ return r >= 1 ? w * (1 + r/30) : w; }   // Epley estimate
-function exerciseHistory(name){
-  // oldest → newest, one point per completed session where it appears
-  const pts = [];
-  for(let i = state.sessions.length - 1; i >= 0; i--){
-    const s = state.sessions[i];
-    if(!isDone(s) || !s.entries) continue;
-    const e = s.entries.find(e => e.exercise.toLowerCase() === name.toLowerCase());
-    if(e && e.sets.length){
-      const best = e.sets.reduce((a,b)=> (e1rm(b.w,b.r) > e1rm(a.w,a.r) ? b : a));
-      const vol = e.sets.reduce((t,x)=> t + x.w * x.r, 0);
-      pts.push({date:s.date, best, vol, sets:e.sets.length});
-    }
-  }
-  return pts;
-}
-function renderProgressSelect(){
-  const names = [...new Set(state.sessions.filter(isDone).flatMap(s => (s.entries||[]).map(e => e.exercise)))].sort();
-  const sel = document.getElementById('progEx');
-  const keep = sel.value;
-  sel.innerHTML = names.length
-    ? names.map(n => '<option' + (n===keep?' selected':'') + '>' + esc(n) + '</option>').join('')
-    : '<option value="" disabled selected>No exercises logged yet</option>';
-}
-function sparkline(pts){
-  if(pts.length < 2) return '';
-  const W = 500, H = 120, P = 8;
-  const vals = pts.map(p => e1rm(p.best.w, p.best.r));
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const span = (max - min) || 1;
-  const x = i => P + i * (W - 2*P) / (pts.length - 1);
-  const y = v => H - P - (v - min) * (H - 2*P) / span;
-  const line = vals.map((v,i)=> (i?'L':'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
-  const dots = vals.map((v,i)=>
-    '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) + '" r="3.5" fill="' +
-    (v >= max ? 'var(--knurl)' : 'var(--chalk-dim)') + '"/>').join('');
-  return '<svg class="prog-chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Estimated 1RM trend">' +
-    '<path d="' + line + '" fill="none" stroke="var(--knurl)" stroke-width="2" opacity=".7"/>' + dots + '</svg>';
-}
-function renderProgress(){
-  renderProgressSelect();
-  const name = document.getElementById('progEx').value;
-  const body = document.getElementById('progBody');
-  if(!name){ body.innerHTML = '<div class="empty"><b>Nothing to compare yet</b>Log a few sessions and your history lands here.</div>'; return; }
-  const pts = exerciseHistory(name);
-  if(!pts.length){ body.innerHTML = ''; return; }
-
-  const bestPt = pts.reduce((a,b)=> e1rm(b.best.w,b.best.r) > e1rm(a.best.w,a.best.r) ? b : a);
-  const latest = pts[pts.length-1];
-  const first  = pts[0];
-  const change = e1rm(latest.best.w, latest.best.r) - e1rm(first.best.w, first.best.r);
-
-  const rows = pts.slice().reverse().map((p, i, arr) => {
-    const prev = arr[i+1]; // previous session (older)
-    const d = prev ? e1rm(p.best.w,p.best.r) - e1rm(prev.best.w,prev.best.r) : null;
-    const isPR = p === bestPt;
-    return '<div class="prog-row">' +
-      '<span class="d">' + fmtDate(p.date) + '</span>' +
-      '<span class="best"><b>' + p.best.w + '</b> kg × <b>' + p.best.r + '</b> · ' + p.sets + ' sets</span>' +
-      (isPR ? '<span class="pr-flag">PR</span>' : '') +
-      (d === null ? '' : '<span class="delta ' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '▲' : '▼') + ' ' + Math.abs(d).toFixed(1) + '</span>') +
-      '</div>';
-  }).join('');
-
-  body.innerHTML =
-    '<div class="prog-card">' +
-      '<div class="prog-stats">' +
-        '<div class="prog-stat"><div class="v">' + bestPt.best.w + '×' + bestPt.best.r + '</div><div class="l">Best set</div></div>' +
-        '<div class="prog-stat"><div class="v">' + e1rm(bestPt.best.w,bestPt.best.r).toFixed(0) + '</div><div class="l">Est. 1RM kg</div></div>' +
-        '<div class="prog-stat"><div class="v">' + (change >= 0 ? '+' : '') + change.toFixed(1) + '</div><div class="l">Since first</div></div>' +
-      '</div>' +
-      sparkline(pts) +
-    '</div>' +
-    '<div class="prog-card"><div class="prog-title">Session by session — beat these numbers</div>' + rows + '</div>';
-}
-
-/* ---------- week + plans ---------- */
-function weekKeys(){
-  const keys = [];
-  const now = new Date();
-  for(let i=0;i<7;i++){
-    keys.push(dateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate()+i)));
-  }
-  return keys;
-}
-function weekHeading(key, i){
-  if(i===0) return 'Today';
-  if(i===1) return 'Tomorrow';
-  return parseKey(key).toLocaleDateString('en-GB',{weekday:'long'});
-}
-function weekDateLabel(key){
-  return parseKey(key).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-}
-function startable(key){ return key <= todayKey(); }
-
-function applyPlan(s){
-  draft = {
-    day: s.day,
-    planId: s.id,
-    entries: (s.entries||[]).map(e => ({
-      exercise: e.exercise,
-      group: e.group,
-      sets: [],
-      note: e.note || ''
-    }))
-  };
-  openEx = new Set();
-  clearRest();
-}
-
-function hydrateTodayPlan(){
-  const plan = planFor(todayKey());
-  if(!plan) return;
-  if(draft.planId === plan.id) return;
-  if(draft.entries.length) return;
-  applyPlan(plan);
-}
-
-function startPlan(id){
-  const s = state.sessions.find(x => x.id === id);
-  if(!s || !isPlanned(s)) return;
-  if(draft.planId === id && draft.entries.length){ showView('today'); return; }
-  if(draft.entries.some(e => e.sets.length) && !confirm('Replace the session you’re logging?')) return;
-  applyPlan(s);
-  renderDayRow(); renderExercises(); renderPicker();
-  showView('today');
-}
-
-function openPlanEditor(key, id){
-  const existing = id
-    ? state.sessions.find(s => s.id === id)
-    : planFor(key);
-  planEdit = existing && isPlanned(existing)
-    ? {
-        dateKey: dateKey(existing.date),
-        id: existing.id,
-        day: existing.day,
-        notes: existing.notes || '',
-        entries: (existing.entries||[]).map(e => ({
-          exercise: e.exercise, group: e.group, sets: [], note: e.note || ''
-        }))
-      }
-    : { dateKey: key, day: guessDay(), notes: '', entries: [] };
-  renderPlanEditor();
-  showView('week');
-}
-
-function closePlanEditor(){
-  planEdit = null;
-  const ed = document.getElementById('planEditor');
-  ed.hidden = true;
-  ed.innerHTML = '';
-}
-
-function setPlanDay(d){
-  if(!planEdit) return;
-  planEdit.day = d;
-  renderPlanEditor();
-}
-function movePlanEx(i, dir){
-  if(!planEdit) return;
-  const j = i + dir;
-  if(j < 0 || j >= planEdit.entries.length) return;
-  const t = planEdit.entries[i];
-  planEdit.entries[i] = planEdit.entries[j];
-  planEdit.entries[j] = t;
-  renderPlanEditor();
-}
-function removePlanEx(i){
-  if(!planEdit) return;
-  planEdit.entries.splice(i,1);
-  renderPlanEditor();
-}
-function updatePlanNote(i, val){
-  if(planEdit) planEdit.entries[i].note = val;
-}
-function updatePlanSessionNote(val){
-  if(planEdit) planEdit.notes = val;
-}
-
-function renderPlanPicker(){
-  if(!planEdit) return;
-  const gSel = document.getElementById('wGroup');
-  const eSel = document.getElementById('wEx');
-  if(!gSel) return;
-  const keepG = gSel.value;
-  gSel.innerHTML = '<option value="" disabled>Muscle group…</option>' +
-    groupsForDay(planEdit.day).map(g => '<option' + (g===keepG?' selected':'') + '>' + esc(g) + '</option>').join('');
-  if(!keepG) gSel.selectedIndex = 0;
-  const g = gSel.value;
-  const keepX = eSel.value;
-  eSel.innerHTML = '<option value="" disabled>Exercise…</option>' +
-    (g ? exercisesForGroup(g, planEdit.day).map(x => '<option' + (x===keepX?' selected':'') + '>' + esc(x) + '</option>').join('') +
-      '<option' + (keepX===CUSTOM?' selected':'') + '>' + CUSTOM + '</option>' : '');
-  if(!g || !keepX) eSel.selectedIndex = 0;
-  const isCustom = eSel.value === CUSTOM;
-  const c = document.getElementById('wCustom');
-  c.hidden = !isCustom;
-  updatePlanAddBtn();
-}
-function onPlanGroupChange(){
-  const eSel = document.getElementById('wEx');
-  const g = document.getElementById('wGroup').value;
-  eSel.innerHTML = '<option value="" disabled selected>Exercise…</option>' +
-    exercisesForGroup(g, planEdit.day).map(x => '<option>' + esc(x) + '</option>').join('') +
-    '<option>' + CUSTOM + '</option>';
-  document.getElementById('wCustom').hidden = true;
-  updatePlanAddBtn();
-}
-function onPlanExChange(){
-  const isCustom = document.getElementById('wEx').value === CUSTOM;
-  const c = document.getElementById('wCustom');
-  c.hidden = !isCustom;
-  if(isCustom) c.focus();
-  updatePlanAddBtn();
-}
-function updatePlanAddBtn(){
-  const g = document.getElementById('wGroup');
-  const x = document.getElementById('wEx');
-  const c = document.getElementById('wCustom');
-  if(!g) return;
-  document.getElementById('wAdd').disabled = !g.value || !x.value || (x.value === CUSTOM && !c.value.trim());
-}
-function addPlanExercise(){
-  if(!planEdit) return;
-  const g = document.getElementById('wGroup').value;
-  let x = document.getElementById('wEx').value;
-  if(x === CUSTOM) x = document.getElementById('wCustom').value.trim();
-  if(!g || !x) return;
-  planEdit.entries.push({exercise:x, group:g, sets:[], note:''});
-  renderPlanEditor();
-}
-
-function renderPlanEditor(){
-  const ed = document.getElementById('planEditor');
-  if(!planEdit){ ed.hidden = true; ed.innerHTML = ''; return; }
-  ed.hidden = false;
-  const idx = weekKeys().indexOf(planEdit.dateKey);
-  const label = idx >= 0 ? weekHeading(planEdit.dateKey, idx)
-    : parseKey(planEdit.dateKey).toLocaleDateString('en-GB',{weekday:'short'});
-  const dateL = weekDateLabel(planEdit.dateKey);
-  ed.innerHTML =
-    '<h2>Plan ' + esc(label === 'Today' || label === 'Tomorrow' ? label : label.slice(0,3)) + ' ' + esc(dateL) + '</h2>' +
-    '<div class="day-row">' + DAYS.map(d =>
-      '<button class="' + (planEdit.day===d?'on':'') + '" onclick="setPlanDay(\'' + d + '\')">' + d + '</button>'
-    ).join('') + '</div>' +
-    '<label for="wNotes" class="picker-title">Notes</label>' +
-    '<input class="plan-notes" id="wNotes" type="text" placeholder="optional — e.g. heavy bench" value="' + esc(planEdit.notes) + '" oninput="updatePlanSessionNote(this.value)">' +
-    planEdit.entries.map((e,i) =>
-      '<div class="plan-ex">' +
-        '<div class="plan-move">' +
-          '<button type="button" onclick="movePlanEx(' + i + ',-1)" aria-label="Move up">▲</button>' +
-          '<button type="button" onclick="movePlanEx(' + i + ',1)" aria-label="Move down">▼</button>' +
-        '</div>' +
-        '<div class="info"><div class="n">' + esc(e.exercise) + '</div><div class="g">' + esc(e.group) + '</div>' +
-          '<input type="text" placeholder="Notes (optional)" value="' + esc(e.note) + '" oninput="updatePlanNote(' + i + ', this.value)">' +
-        '</div>' +
-        '<button class="set-del" onclick="removePlanEx(' + i + ')" aria-label="Remove exercise">×</button>' +
-      '</div>'
-    ).join('') +
-    '<div class="picker" style="margin-top:10px">' +
-      '<div class="picker-title">Add exercise</div>' +
-      '<div class="row">' +
-        '<select id="wGroup" onchange="onPlanGroupChange()"></select>' +
-        '<select id="wEx" onchange="onPlanExChange()"></select>' +
-        '<input type="text" id="wCustom" placeholder="Custom exercise name…" hidden oninput="updatePlanAddBtn()">' +
-        '<button class="add-btn" id="wAdd" onclick="addPlanExercise()" disabled>Add to plan</button>' +
-      '</div>' +
-    '</div>' +
-    '<button class="plan-save" onclick="savePlan()">Save plan</button>' +
-    '<button class="plan-cancel" onclick="closePlanEditor()">Cancel</button>';
-  renderPlanPicker();
-}
-
-function savePlan(){
-  if(!planEdit) return;
-  if(!planEdit.entries.length){ alert('Add at least one exercise.'); return; }
-  const payload = {
-    day: planEdit.day,
-    status: 'planned',
-    notes: (planEdit.notes || '').trim(),
-    entries: planEdit.entries.map(e => ({
-      exercise: e.exercise, group: e.group, sets: [], note: e.note || ''
-    }))
-  };
-  const existing = planEdit.id
-    ? state.sessions.find(s => s.id === planEdit.id && isPlanned(s))
-    : planFor(planEdit.dateKey);
-  if(existing){
-    existing.day = payload.day;
-    existing.status = 'planned';
-    existing.notes = payload.notes;
-    existing.entries = payload.entries;
-    existing.date = existing.date || atNoon(planEdit.dateKey);
-  } else {
-    state.sessions.push({
-      id: Date.now().toString(36) + '-p',
-      date: atNoon(planEdit.dateKey),
-      ...payload
-    });
-  }
-  state.sessions.sort((a,b)=> b.date.localeCompare(a.date));
-  store.save(state);
-  sync.push();
-  if(draft.planId && existing && draft.planId === existing.id){
-    draft.day = existing.day;
-    draft.entries = existing.entries.map(e => {
-      const live = draft.entries.find(d => d.exercise === e.exercise);
-      return { exercise: e.exercise, group: e.group, sets: live ? live.sets : [], note: e.note || '' };
-    });
-  } else {
-    hydrateTodayPlan();
-  }
-  closePlanEditor();
-  renderDayRow(); renderExercises(); renderPicker();
-  renderWeek();
-}
-
-function deletePlan(id){
-  if(!confirm('Delete this planned session?')) return;
-  const wasDraft = draft.planId === id;
-  const hadSets = draft.entries.some(e => e.sets.length);
-  sync.remove(id);
-  if(planEdit && planEdit.id === id) closePlanEditor();
-  if(wasDraft){
-    draft.planId = undefined;
-    if(!hadSets){
-      draft = { day: guessDay(), entries: [] };
-      openEx = new Set();
-    }
-    renderDayRow(); renderExercises(); renderPicker();
-  }
-  renderWeek();
-}
-
-function weekCard(key, i, plan, overdue){
-  const logged = doneOn(key);
-  const names = plan ? (plan.entries||[]) : [];
-  const actions = [];
-  if(plan){
-    if(startable(key)) actions.push('<button class="primary" onclick="startPlan(\'' + plan.id + '\')">Start</button>');
-    actions.push('<button onclick="openPlanEditor(\'' + key + '\',\'' + plan.id + '\')">Edit</button>');
-    actions.push('<button onclick="deletePlan(\'' + plan.id + '\')">Delete</button>');
-  } else {
-    actions.push('<button class="primary" onclick="openPlanEditor(\'' + key + '\')">Plan session</button>');
-  }
-  return '<div class="week-day' + (key===todayKey()?' is-today':'') + '">' +
-    '<div class="week-top"><span class="week-label">' + esc(overdue ? 'Missed' : weekHeading(key, i)) + '</span>' +
-      '<span class="week-date">' + esc(weekDateLabel(key)) + '</span></div>' +
-    (plan
-      ? '<div class="week-day-type">' + esc(plan.day) + '</div>' +
-        (plan.notes ? '<div class="week-notes">' + esc(plan.notes) + '</div>' : '') +
-        names.map(e =>
-          '<div class="week-ex"><div class="n">' + esc(e.exercise) + '</div>' +
-          (e.note ? '<div class="note">' + esc(e.note) + '</div>' : '') + '</div>'
-        ).join('')
-      : '<div class="week-logged">No session planned</div>') +
-    (logged.length ? '<div class="week-logged">Logged ' + logged.map(s => s.day).join(', ') + '</div>' : '') +
-    '<div class="week-actions">' + actions.join('') + '</div>' +
-  '</div>';
-}
-
-function renderWeek(){
-  const wrap = document.getElementById('weekList');
-  const today = todayKey();
-  const overdue = state.sessions
-    .filter(s => isPlanned(s) && dateKey(s.date) < today)
-    .sort((a,b)=> a.date.localeCompare(b.date));
-  let html = '';
-  if(overdue.length){
-    html += '<div class="week-section">Overdue</div>';
-    overdue.forEach(s => { html += weekCard(dateKey(s.date), -1, s, true); });
-    html += '<div class="week-section">Coming days</div>';
-  }
-  weekKeys().forEach((key, i) => { html += weekCard(key, i, planFor(key), false); });
-  wrap.innerHTML = html;
-}
-
-/* ---------- views ---------- */
-function showView(v){
-  document.getElementById('view-today').hidden    = v !== 'today';
-  document.getElementById('view-week').hidden     = v !== 'week';
-  document.getElementById('view-history').hidden  = v !== 'history';
-  document.getElementById('view-progress').hidden = v !== 'progress';
-  document.getElementById('tab-today').setAttribute('aria-selected', v==='today');
-  document.getElementById('tab-week').setAttribute('aria-selected', v==='week');
-  document.getElementById('tab-history').setAttribute('aria-selected', v==='history');
-  document.getElementById('tab-progress').setAttribute('aria-selected', v==='progress');
-  if(v === 'progress') renderProgress();
-  if(v === 'week') renderWeek();
-  updateRestBar();
-}
-
-/* ---------- boot ---------- */
-document.getElementById('todayDate').textContent =
-  new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
-hydrateTodayPlan();
-renderDayRow(); renderExercises(); renderPicker(); renderHistory(); renderWeek();
-bootAuth();
-</script>
 </body>
 </html>
